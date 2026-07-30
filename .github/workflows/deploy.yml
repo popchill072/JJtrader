@@ -11,14 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - run: npm i -g wrangler@4.107.0
 
       - name: Deploy to Cloudflare Pages
-        run: wrangler pages deploy . --project-name=jj-trader --branch=production
+        run: npx --yes wrangler@4.107.0 pages deploy . --project-name=jj-trader --branch=production
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -28,15 +23,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - run: npm i -g wrangler@4.107.0
 
       - name: Deploy Worker API
-        working-directory: ./worker
-        run: wrangler deploy
+        run: npx --yes wrangler@4.107.0 deploy --config worker/wrangler.toml worker/index.js
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
