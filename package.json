@@ -1,0 +1,14 @@
+{
+  "name": "jj-trader",
+  "version": "1.0.0",
+  "private": true,
+  "description": "JJ Trader - Real-Time Gold & Multi-Asset Trading Platform",
+  "scripts": {
+    "deploy:frontend": "wrangler pages deploy . --project-name=jj-trader",
+    "deploy:worker": "cd worker && wrangler deploy",
+    "deploy:all": "npm run deploy:frontend && npm run deploy:worker"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
