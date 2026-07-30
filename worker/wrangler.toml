@@ -1,6 +1,7 @@
 name = "jj-trader-api"
 main = "index.js"
 compatibility_date = "2024-01-01"
+account_id = "cbcc2f19c1cf04215c9b268b0e2d1b4b"
 
 [[d1_databases]]
 binding = "DB"
