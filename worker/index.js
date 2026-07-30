@@ -1,21 +1,46 @@
 // JJ TRADER - Cloudflare Worker API Backend
 // Handles authentication, user data persistence via D1 Database
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
+const ALLOWED_ORIGINS = [
+  'https://jj-trader.pages.dev',
+  'https://production.jj-trader.pages.dev',
+  'http://localhost:8787',
+  'http://localhost:3000',
+  'http://127.0.0.1:8787',
+  'http://127.0.0.1:5500',
+];
 
-function json(data, status = 200) {
+function resolveCorsOrigin(request) {
+  const origin = request.headers.get('Origin') || '';
+  if (!origin) return 'https://jj-trader.pages.dev';
+  try {
+    const url = new URL(origin);
+    if (url.hostname.endsWith('.pages.dev') || url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+      return origin;
+    }
+  } catch {}
+  return 'https://jj-trader.pages.dev';
+}
+
+function corsHeaders(request) {
+  const origin = resolveCorsOrigin(request);
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+}
+
+function json(data, status = 200, request = null) {
+  const ch = request ? corsHeaders(request) : { 'Access-Control-Allow-Origin': 'https://jj-trader.pages.dev', 'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' };
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    headers: { ...ch, 'Content-Type': 'application/json' },
   });
 }
 
 function err(msg, status = 400) {
-  return json({ error: msg }, status);
+  return respond({ error: msg }, status);
 }
 
 // Crypto helpers
@@ -75,10 +100,11 @@ export default {
 
     // Handle OPTIONS Preflight
     if (method === 'OPTIONS') {
+      const cors = corsHeaders(request);
       return new Response(null, {
         status: 204,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          ...cors,
           'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
           'Access-Control-Max-Age': '86400',
@@ -87,6 +113,10 @@ export default {
     }
 
     try {
+      const cors = corsHeaders(request);
+      const respond = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
+      const fail = (msg, status = 400) => respond({ error: msg }, status);
+
       // Root URL -> Render friendly status page with direct link to Web App
       if (path === '/' || path === '' || path === '/index.html') {
         return new Response(`<!DOCTYPE html>
@@ -112,7 +142,7 @@ export default {
 </body>
 </html>`, {
           status: 200,
-          headers: { 'Content-Type': 'text/html; charset=utf-8', ...CORS_HEADERS }
+          headers: { 'Content-Type': 'text/html; charset=utf-8', ...corsHeaders(request) }
         });
       }
 
@@ -135,7 +165,7 @@ export default {
           });
           if (ffRes.ok) {
             const data = await ffRes.json();
-            return json(data);
+            return respond(data);
           }
         } catch (e) {}
 
@@ -150,7 +180,7 @@ export default {
 
         const dayOffset = period === 'yesterday' ? -1 : (period === 'nextweek' ? 7 : (period === 'today' ? 0 : 0));
 
-        return json([
+        return respond([
           { title: "CPI m/m (ดัชนีราคาผู้บริโภค)", country: "USD", date: buildDate(dayOffset, 19, 30), impact: "High", forecast: "0.3%", previous: "0.2%" },
           { title: "Core CPI m/m", country: "USD", date: buildDate(dayOffset, 19, 30), impact: "High", forecast: "0.2%", previous: "0.2%" },
           { title: "Unemployment Claims (สวัสดิการว่างงาน)", country: "USD", date: buildDate(dayOffset, 19, 30), impact: "Medium", forecast: "225K", previous: "222K" },
@@ -166,15 +196,15 @@ export default {
       if (path === '/api/auth/register' && method === 'POST') {
         const clientIp = request.headers.get('CF-Connecting-IP') || 'unknown';
         if (!checkRateLimit(clientIp)) {
-          return err('⚠️ มีการลงทะเบียนบ่อยเกินไป กรุณารอสักครู่ แล้วลองใหม่อีกครั้ง', 429);
+          return fail('⚠️ มีการลงทะเบียนบ่อยเกินไป กรุณารอสักครู่ แล้วลองใหม่อีกครั้ง', 429);
         }
 
         const { username, pin, email } = await request.json();
         if (!username || !pin || String(pin).trim().length < 4) {
-          return err('กรุณากรอกชื่อผู้ใช้ และ PIN (อย่างน้อย 4 หลัก) ให้ครบถ้วนครับ');
+          return fail('กรุณากรอกชื่อผู้ใช้ และ PIN (อย่างน้อย 4 หลัก) ให้ครบถ้วนครับ');
         }
         if (!email || !email.includes('@')) {
-          return err('กรุณากรอก อีเมล (Email) ให้ถูกต้องครับ');
+          return fail('กรุณากรอก อีเมล (Email) ให้ถูกต้องครับ');
         }
 
         const cleanUsername = username.trim();
@@ -182,7 +212,7 @@ export default {
 
         const existing = await DB.prepare('SELECT id FROM users WHERE username = ?').bind(cleanUsername).first();
         if (existing) {
-          return err('❌ ชื่อผู้ใช้นี้ถูกใช้งานแล้ว กรุณาใช้ชื่ออื่น หรือกดสลับไปหน้าเข้าสู่ระบบ', 400);
+          return fail('❌ ชื่อผู้ใช้นี้ถูกใช้งานแล้ว กรุณาใช้ชื่ออื่น หรือกดสลับไปหน้าเข้าสู่ระบบ', 400);
         }
 
         const salt = generateSalt();
@@ -203,25 +233,25 @@ export default {
         const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
         await DB.prepare('INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)').bind(token, newId, expires).run();
 
-        return json({ token, username: cleanUsername, message: 'สมัครสมาชิกสำเร็จ!' });
+        return respond({ token, username: cleanUsername, message: 'สมัครสมาชิกสำเร็จ!' });
       }
 
       // POST /api/auth/login  { username, pin }
       if (path === '/api/auth/login' && method === 'POST') {
         const clientIp = request.headers.get('CF-Connecting-IP') || 'unknown';
         if (!checkRateLimit(clientIp)) {
-          return err('⚠️ มีการขอเข้าใช้ระบบบ่อยเกินไป กรุณารอสักครู่ แล้วลองใหม่อีกครั้ง', 429);
+          return fail('⚠️ มีการขอเข้าใช้ระบบบ่อยเกินไป กรุณารอสักครู่ แล้วลองใหม่อีกครั้ง', 429);
         }
 
         const { username, pin } = await request.json();
         if (!username || !pin || String(pin).trim().length < 4) {
-          return err('กรุณากรอกชื่อผู้ใช้และ PIN (อย่างน้อย 4 หลัก) ครับ');
+          return fail('กรุณากรอกชื่อผู้ใช้และ PIN (อย่างน้อย 4 หลัก) ครับ');
         }
 
         // Check if user exists (need salt)
         let user = await DB.prepare('SELECT id, pin_hash, salt FROM users WHERE username = ?').bind(username.trim()).first();
         if (!user) {
-          return err('❌ ไม่พบบัญชีผู้ใช้นี้ในระบบ กรุณากดปุ่มสมัครสมาชิกใหม่ครับ', 401);
+          return fail('❌ ไม่พบบัญชีผู้ใช้นี้ในระบบ กรุณากดปุ่มสมัครสมาชิกใหม่ครับ', 401);
         }
 
         // Use per-user salt if available; fallback for legacy accounts
@@ -230,7 +260,7 @@ export default {
 
         // Verify PIN
         if (user.pin_hash !== pinHash) {
-          return err('❌ PIN ไม่ถูกต้องครับ กรุณาลองใหม่อีกครั้ง', 401);
+          return fail('❌ PIN ไม่ถูกต้องครับ กรุณาลองใหม่อีกครั้ง', 401);
         }
 
         // Create session (30 days)
@@ -238,20 +268,20 @@ export default {
         const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
         await DB.prepare('INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)').bind(token, user.id, expires).run();
 
-        return json({ token, username: username.trim() });
+        return respond({ token, username: username.trim() });
       }
 
     // All routes below require auth
     const user = await getUser(request, DB);
     if (!user && path.startsWith('/api/') && path !== '/api/auth/login') {
-      return err('กรุณาล็อกอินก่อนครับ', 401);
+      return fail('กรุณาล็อกอินก่อนครับ', 401);
     }
 
     // ── PREFERENCES ──────────────────────────────────
     // GET /api/preferences
     if (path === '/api/preferences' && method === 'GET') {
       const prefs = await DB.prepare('SELECT * FROM preferences WHERE user_id = ?').bind(user.id).first();
-      return json(prefs || {});
+      return respond(prefs || {});
     }
 
     // POST /api/preferences  { balance, risk_pct, timeframe, symbol }
@@ -267,61 +297,61 @@ export default {
           symbol = excluded.symbol,
           updated_at = excluded.updated_at
       `).bind(user.id, balance, risk_pct, timeframe, symbol).run();
-      return json({ ok: true });
+      return respond({ ok: true });
     }
 
     // ── NOTES ─────────────────────────────────────────
     // GET /api/notes
     if (path === '/api/notes' && method === 'GET') {
       const { results } = await DB.prepare('SELECT * FROM notes WHERE user_id = ? ORDER BY created_at DESC').bind(user.id).all();
-      return json(results);
+      return respond(results);
     }
 
     // POST /api/notes  { text }
     if (path === '/api/notes' && method === 'POST') {
       const { text } = await request.json();
-      if (!text) return err('ข้อความว่างครับ');
+      if (!text) return fail('ข้อความว่างครับ');
       const id = genId();
       const date = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'short', timeStyle: 'short' });
       await DB.prepare('INSERT INTO notes (id, user_id, text, date) VALUES (?, ?, ?, ?)').bind(id, user.id, text, date).run();
-      return json({ ok: true, id });
+      return respond({ ok: true, id });
     }
 
     // DELETE /api/notes/:id
     if (path.startsWith('/api/notes/') && method === 'DELETE') {
       const noteId = path.split('/')[3];
       await DB.prepare('DELETE FROM notes WHERE id = ? AND user_id = ?').bind(noteId, user.id).run();
-      return json({ ok: true });
+      return respond({ ok: true });
     }
 
     // ── ALERTS ────────────────────────────────────────
     // GET /api/alerts
     if (path === '/api/alerts' && method === 'GET') {
       const { results } = await DB.prepare('SELECT * FROM alerts WHERE user_id = ? AND active = 1 ORDER BY price ASC').bind(user.id).all();
-      return json(results);
+      return respond(results);
     }
 
     // POST /api/alerts  { price }
     if (path === '/api/alerts' && method === 'POST') {
       const { price } = await request.json();
-      if (!price) return err('ราคาว่างครับ');
+      if (!price) return fail('ราคาว่างครับ');
       const id = genId();
       await DB.prepare('INSERT INTO alerts (id, user_id, price) VALUES (?, ?, ?)').bind(id, user.id, price).run();
-      return json({ ok: true, id });
+      return respond({ ok: true, id });
     }
 
     // DELETE /api/alerts/:id
     if (path.startsWith('/api/alerts/') && method === 'DELETE') {
       const alertId = path.split('/')[3];
       await DB.prepare('DELETE FROM alerts WHERE id = ? AND user_id = ?').bind(alertId, user.id).run();
-      return json({ ok: true });
+      return respond({ ok: true });
     }
 
     // ── TRADE HISTORY ──────────────────────────────────
     // GET /api/history
     if (path === '/api/history' && method === 'GET') {
       const { results } = await DB.prepare('SELECT * FROM trade_history WHERE user_id = ? ORDER BY date DESC LIMIT 100').bind(user.id).all();
-      return json(results);
+      return respond(results);
     }
 
     // POST /api/history  { symbol, direction, entry, sl, tp, lot, result, pnl, note }
@@ -333,19 +363,19 @@ export default {
         INSERT INTO trade_history (id, user_id, symbol, direction, entry, sl, tp, lot, result, pnl, note, date)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(id, user.id, body.symbol || 'XAUUSD', body.direction || 'BUY', body.entry, body.sl, body.tp, body.lot, body.result, body.pnl || 0, body.note || '', date).run();
-      return json({ ok: true, id });
+      return respond({ ok: true, id });
     }
 
     // DELETE /api/history/:id
     if (path.startsWith('/api/history/') && method === 'DELETE') {
       const hId = path.split('/')[3];
       await DB.prepare('DELETE FROM trade_history WHERE id = ? AND user_id = ?').bind(hId, user.id).run();
-      return json({ ok: true });
+      return respond({ ok: true });
     }
 
-    return err('ไม่พบ API endpoint นี้ครับ', 404);
+    return fail('ไม่พบ API endpoint นี้ครับ', 404);
     } catch (error) {
-      return json({ error: 'Server Error: ' + (error.message || error.toString()) }, 500);
+      return respond({ error: '⚠️ เซิร์ฟเวอร์มีข้อผิดพลาดภายใน กรุณาลองใหม่อีกครั้ง' }, 500);
     }
   }
 };

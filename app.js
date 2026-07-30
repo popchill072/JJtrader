@@ -7,6 +7,7 @@ let widgetInstance = null;
 let priceAlerts = [];
 let sessionToken = localStorage.getItem('jj_session_token') || null;
 let currentUsername = localStorage.getItem('jj_username') || null;
+let intervalIds = [];
 
 // ── API HELPER ─────────────────────────────────────────
 async function api(method, path, body = null) {
@@ -198,6 +199,9 @@ function skipLoginGuest() {
 
 function handleLogout() {
   if (!confirm('ต้องการออกจากระบบใช่ไหมครับ?')) return;
+  intervalIds.forEach(id => clearInterval(id));
+  intervalIds = [];
+  if (newsCountdownInterval) { clearInterval(newsCountdownInterval); newsCountdownInterval = null; }
   sessionToken = null;
   currentUsername = null;
   localStorage.removeItem('jj_session_token');
@@ -232,9 +236,10 @@ function initApp() {
 
   try {
     updateTradingSessionsClock();
-    setInterval(updateTradingSessionsClock, 1000);
+    const clockId = setInterval(updateTradingSessionsClock, 1000);
+    intervalIds.push(clockId);
   } catch (e) { console.error(e); }
-  try { loadTradeLogs(); } catch (e) { console.error(e); }
+  try { loadTradeLogs().catch(e => console.error(e)); } catch (e) { console.error(e); }
   try {
     const initPrice = lastKnownLivePrice || parseFloat(document.getElementById('gold-spot-input')?.value) || 0;
     calculateV11ProEngine(initPrice);
@@ -448,7 +453,7 @@ function switchToolTab(tabId, btnElement) {
 function updateTradingSessionsClock() {
   const now = new Date();
   const getTime = (tz) => new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(now);
-  const getHour = (tz) => parseInt(new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: false }).formatToParts(now).find(p => p.type === 'hour').value, 10);
+  const getHour = (tz) => parseInt((new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: false }).formatToParts(now).find(p => p.type === 'hour')?.value) || '0', 10);
 
   if (document.getElementById('time-sydney')) document.getElementById('time-sydney').textContent = getTime('Australia/Sydney');
   if (document.getElementById('time-tokyo')) document.getElementById('time-tokyo').textContent = getTime('Asia/Tokyo');
@@ -547,8 +552,12 @@ async function loadForexNews(forceRefresh = false) {
 
   renderNewsListWithCountdown();
 
-  if (newsCountdownInterval) clearInterval(newsCountdownInterval);
+  if (newsCountdownInterval) {
+    clearInterval(newsCountdownInterval);
+    intervalIds = intervalIds.filter(id => id !== newsCountdownInterval);
+  }
   newsCountdownInterval = setInterval(updateNewsCountdowns, 1000);
+  intervalIds.push(newsCountdownInterval);
 }
 
 function changeNewsPeriod(period, btnElement) {
@@ -681,7 +690,8 @@ let triggeredAlertIds = new Set();
 
 function startLivePriceTicker() {
   fetchLiveAssetPrice();
-  setInterval(fetchLiveAssetPrice, 2500);
+  const id = setInterval(fetchLiveAssetPrice, 2500);
+  intervalIds.push(id);
 }
 
 async function fetchLiveAssetPrice() {
@@ -890,6 +900,14 @@ function addTradeLogRecord() {
 
   showToast(pnl >= 0 ? `✅ บันทึกออเดอร์: กำไร +$${pnl.toFixed(2)}` : `📉 บันทึกออเดอร์: ขาดทุน -$${Math.abs(pnl).toFixed(2)}`);
   loadTradeLogs();
+
+  // Sync to cloud if logged in
+  if (sessionToken && sessionToken !== 'guest_mode') {
+    api('POST', '/api/history', {
+      symbol: record.symbol, direction, entry: parseFloat(entry), sl: 0, tp: 0,
+      lot, result: record.result, pnl: parseFloat(pnl), note
+    }).catch(() => {});
+  }
 }
 
 function deleteTradeLogRecord(id) {
@@ -897,13 +915,30 @@ function deleteTradeLogRecord(id) {
   logs = logs.filter(item => item.id !== id);
   saveLocalTradeLogs(logs);
   loadTradeLogs();
+
+  // Sync delete to cloud if logged in
+  if (sessionToken && sessionToken !== 'guest_mode') {
+    api('DELETE', `/api/history/${id}`).catch(() => {});
+  }
 }
 
-function loadTradeLogs() {
+async function loadTradeLogs() {
   const container = document.getElementById('trade-log-list-container');
   const countEl = document.getElementById('log-stat-count');
   const winRateEl = document.getElementById('log-stat-winrate');
   const pnlEl = document.getElementById('log-stat-pnl');
+
+  if (container) container.innerHTML = '<div style="color:var(--text-muted);font-size:11px;text-align:center;padding:12px;">⏳ กำลังโหลดประวัติเทรด...</div>';
+
+  // Try loading from cloud first when logged in
+  if (sessionToken && sessionToken !== 'guest_mode') {
+    try {
+      const remote = await api('GET', '/api/history');
+      if (Array.isArray(remote) && remote.length) {
+        saveLocalTradeLogs(remote);
+      }
+    } catch (e) {}
+  }
 
   const logs = getLocalTradeLogs();
 
