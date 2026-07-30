@@ -1,0 +1,13 @@
+{
+  "name": "jj-trader-api",
+  "compatibility_date": "2024-01-01",
+  "main": "worker/index.js",
+  "account_id": "cbcc2f19c1cf04215c9b268b0e2d1b4b",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "jj-trader-db",
+      "database_id": "0293b04e-6700-4d90-be55-b12897137c0f"
+    }
+  ]
+}
