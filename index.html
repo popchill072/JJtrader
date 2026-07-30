@@ -5,83 +5,56 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JJ Trader - Real-Time Gold & Multi-Asset Platform</title>
   <meta name="description" content="JJ Trader - แพลตฟอร์มวิเคราะห์กราฟทองคำ XAU/USD และสินทรัพย์การเงินเรียลไทม์พร้อมเครื่องมือเทรดครบครัน">
-  
-  <!-- Cache Control Meta Tags -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-
-  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
-  
-  <!-- Favicon -->
   <link rel="icon" type="image/jpeg" href="logo.jpg">
-  
-  <!-- Custom Styles -->
-  <link rel="stylesheet" href="styles.css?v=16.0">
-
-  <!-- TradingView Library -->
+  <link rel="stylesheet" href="styles.css?v=18.0">
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body>
 
-  <!-- LOGIN MODAL OVERLAY -->
+  <!-- LOGIN MODAL -->
   <div class="login-overlay" id="login-overlay">
     <div class="login-card">
       <img src="logo.jpg" alt="JJ Trader" class="login-logo">
       <div class="login-title">JJ TRADER</div>
       <div class="login-subtitle">SUCCESS IS NOT DIFFICULT</div>
 
-      <!-- AUTH TAB SWITCHER -->
-      <div style="display: flex; gap: 4px; background: rgba(8,10,15,0.8); padding: 4px; border-radius: 12px; margin-bottom: 16px; border: 1px solid var(--border-gold);">
-        <button type="button" id="tab-btn-login" class="quick-btn active" onclick="switchAuthTab('login')" style="flex: 1; justify-content: center; font-size: 13px; font-weight: 700; padding: 8px;">🔑 เข้าสู่ระบบ</button>
-        <button type="button" id="tab-btn-register" class="quick-btn" onclick="switchAuthTab('register')" style="flex: 1; justify-content: center; font-size: 13px; font-weight: 700; padding: 8px;">✨ สมัครสมาชิกใหม่</button>
+      <div class="auth-tabs">
+        <button type="button" id="tab-btn-login" class="auth-tab active" onclick="switchAuthTab('login')">🔑 เข้าสู่ระบบ</button>
+        <button type="button" id="tab-btn-register" class="auth-tab" onclick="switchAuthTab('register')">✨ สมัครสมาชิก</button>
       </div>
 
-      <!-- FORM 1: LOGIN -->
       <form id="form-login" class="login-form" onsubmit="event.preventDefault(); handleLoginSubmit();">
-        <div class="calc-input-group">
-          <input type="text" id="login-username" class="login-input" placeholder="👤 ชื่อผู้ใช้งาน (Username)" maxlength="30" autocomplete="username" required>
-        </div>
-        <div class="calc-input-group">
-          <input type="password" id="login-pin" class="login-input" placeholder="🔑 PIN 4-6 หลัก ( Password )" maxlength="12" inputmode="numeric" autocomplete="current-password" required>
-        </div>
+        <input type="text" id="login-username" class="login-input" placeholder="ชื่อผู้ใช้งาน (Username)" maxlength="30" autocomplete="username" required>
+        <input type="password" id="login-pin" class="login-input" placeholder="PIN 4-6 หลัก (Password)" maxlength="12" inputmode="numeric" autocomplete="current-password" required>
         <div class="login-error" id="login-error-msg"></div>
-        <button type="submit" class="btn-login" id="login-btn">🔐 เข้าสู่ระบบ</button>
-        
-        <div class="login-hint" style="margin-top: 12px;">
-          🔒 เฉพาะสมาชิกที่มีบัญชีอยู่แล้วในระบบ<br>
-          ⚠️ หากพิมพ์รหัสไม่ถูกต้อง จะไม่สามารถเข้าสู่ระบบได้<br>
-          💡 ยังไม่มีบัญชี? กดที่ปุ่ม <b>"สมัครสมาชิกใหม่"</b> ด้านบน
+        <button type="submit" class="btn-primary" id="login-btn">🔐 เข้าสู่ระบบ</button>
+        <div class="login-hint">
+          🔒 เฉพาะสมาชิกที่มีบัญชีอยู่แล้ว<br>
+          💡 ยังไม่มีบัญชี? กด <b>"สมัครสมาชิก"</b> ด้านบน
         </div>
       </form>
 
-      <!-- FORM 2: REGISTER -->
-      <form id="form-register" class="login-form" style="display: none;" onsubmit="event.preventDefault(); handleRegisterSubmit();">
-        <div class="calc-input-group">
-          <input type="text" id="reg-username" class="login-input" placeholder="👤 ตั้งชื่อผู้ใช้งาน (Username)" maxlength="30" autocomplete="off" required>
-        </div>
-        <div class="calc-input-group">
-          <input type="email" id="reg-email" class="login-input" placeholder="📧 อีเมลของคุณ (Email)" maxlength="60" autocomplete="email" required>
-        </div>
-        <div class="calc-input-group">
-          <input type="password" id="reg-pin" class="login-input" placeholder="🔑 ตั้ง PIN / รหัสผ่าน 4-6 หลัก" maxlength="12" inputmode="numeric" autocomplete="new-password" required>
-        </div>
+      <form id="form-register" class="login-form" style="display:none" onsubmit="event.preventDefault(); handleRegisterSubmit();">
+        <input type="text" id="reg-username" class="login-input" placeholder="ตั้งชื่อผู้ใช้งาน (Username)" maxlength="30" autocomplete="off" required>
+        <input type="email" id="reg-email" class="login-input" placeholder="อีเมลของคุณ (Email)" maxlength="60" autocomplete="email" required>
+        <input type="password" id="reg-pin" class="login-input" placeholder="ตั้ง PIN 4-6 หลัก" maxlength="12" inputmode="numeric" autocomplete="new-password" required>
         <div class="login-error" id="reg-error-msg"></div>
-        <button type="submit" class="btn-login" id="register-btn" style="background: linear-gradient(135deg, #00e676, #00b0ff); color: #000;">✨ ยืนยันสมัครสมาชิก</button>
-        
-        <div class="login-hint" style="margin-top: 12px;">
+        <button type="submit" class="btn-primary" id="register-btn" style="background:linear-gradient(135deg,#00e676,#00b0ff);color:#000;">✨ ยืนยันสมัครสมาชิก</button>
+        <div class="login-hint">
           📝 กรอก Username, Email และ PIN เพื่อลงทะเบียน<br>
-          ✅ สมัครแล้วเข้าใช้งานระบบวิเคราะห์กราฟได้ทันที<br>
-          ☁️ ซิงค์ข้อมูลส่วนตัวปลอดภัยบน Cloud D1
+          ✅ สมัครแล้วเข้าใช้งานระบบวิเคราะห์กราฟได้ทันที
         </div>
       </form>
     </div>
   </div>
 
-  <!-- TOP TICKER TAPE WIDGET -->
+  <!-- TICKER TAPE -->
   <div class="ticker-container">
     <div class="tradingview-widget-container">
       <div class="tradingview-widget-container__widget"></div>
@@ -104,61 +77,46 @@
     </div>
   </div>
 
-  <!-- HEADER / BRANDING BANNER -->
+  <!-- HEADER -->
   <header class="main-header">
     <div class="brand-group">
       <img src="logo.jpg" alt="JJ Trader Logo" class="brand-logo">
-      <div class="brand-text">
+      <div>
         <h1 class="brand-title">JJ TRADER</h1>
         <p class="brand-tagline">SUCCESS IS NOT DIFFICULT</p>
       </div>
     </div>
-    
     <div class="header-right">
       <div class="user-badge" id="header-user-badge">
         <span id="header-username">Guest Trader</span>
-        <button class="logout-btn" onclick="handleLogout()" title="ออกจากระบบ">⎋ ออก</button>
+        <button class="btn-logout" onclick="handleLogout()" title="ออกจากระบบ">⎋ ออกจากระบบ</button>
       </div>
     </div>
   </header>
 
-  <!-- QUICK ASSET SELECTOR & TIMEFRAME BAR -->
+  <!-- TOOLBAR -->
   <div class="toolbar-container">
     <div class="asset-selector">
-      <button class="quick-btn active" onclick="changeSymbol('OANDA:XAUUSD', 'ทองคำ (Gold Spot)', this)">
-        <span>👑</span><span>XAU/USD (Gold)</span>
-      </button>
-      <button class="quick-btn" onclick="changeSymbol('OANDA:XAGUSD', 'เงิน (Silver Spot)', this)">
-        <span>🥈</span><span>XAG/USD (Silver)</span>
-      </button>
-      <button class="quick-btn" onclick="changeSymbol('CAPITALCOM:DXY', 'ดัชนีดอลลาร์ (DXY)', this)">
-        <span>💵</span><span>DXY</span>
-      </button>
-      <button class="quick-btn" onclick="changeSymbol('TVC:USOIL', 'น้ำมันดิบ (US Oil)', this)">
-        <span>🛢️</span><span>US Oil</span>
-      </button>
-      <button class="quick-btn" onclick="changeSymbol('BINANCE:BTCUSDT', 'บิตคอยน์ (Bitcoin)', this)">
-        <span>₿</span><span>BTC/USD</span>
-      </button>
+      <button class="btn-asset active" onclick="changeSymbol('OANDA:XAUUSD', 'ทองคำ (Gold Spot)', this)"><span>👑</span>XAU/USD (Gold)</button>
+      <button class="btn-asset" onclick="changeSymbol('OANDA:XAGUSD', 'เงิน (Silver Spot)', this)"><span>🥈</span>XAG/USD (Silver)</button>
+      <button class="btn-asset" onclick="changeSymbol('CAPITALCOM:DXY', 'ดัชนีดอลลาร์ (DXY)', this)"><span>💵</span>DXY</button>
+      <button class="btn-asset" onclick="changeSymbol('TVC:USOIL', 'น้ำมันดิบ (US Oil)', this)"><span>🛢️</span>US Oil</button>
+      <button class="btn-asset" onclick="changeSymbol('BINANCE:BTCUSDT', 'บิตคอยน์ (Bitcoin)', this)"><span>₿</span>BTC/USD</button>
     </div>
-
     <div class="timeframe-selector">
-      <span class="tf-label">ไทม์เฟรม:</span>
-      <button class="tf-btn" onclick="changeTimeframe('15', this)">15M</button>
-      <button class="tf-btn" onclick="changeTimeframe('60', this)">1H</button>
-      <button class="tf-btn active" onclick="changeTimeframe('240', this)">4H</button>
-      <button class="tf-btn" onclick="changeTimeframe('D', this)">1D</button>
-      <button class="tf-btn" onclick="changeTimeframe('W', this)">1W</button>
-      <button class="quick-btn" onclick="promptCustomIndicator()" style="margin-left: 8px; font-size: 11px;" title="ตั้งค่าอินดิเคเตอร์พรีเซ็ตหรือทำกราฟสะอาด">
-        <span>⚙️</span><span>Custom Indicator</span>
-      </button>
+      <span class="tf-label">TF:</span>
+      <button class="btn-tf" onclick="changeTimeframe('15', this)">15M</button>
+      <button class="btn-tf" onclick="changeTimeframe('60', this)">1H</button>
+      <button class="btn-tf active" onclick="changeTimeframe('240', this)">4H</button>
+      <button class="btn-tf" onclick="changeTimeframe('D', this)">1D</button>
+      <button class="btn-tf" onclick="changeTimeframe('W', this)">1W</button>
+      <button class="btn-indicator" onclick="promptCustomIndicator()" title="ตั้งค่าอินดิเคเตอร์">⚙️ Custom Indicator</button>
     </div>
   </div>
 
-  <!-- MAIN APP LAYOUT (2 COLUMNS: CHART & TOOLS) -->
+  <!-- MAIN LAYOUT -->
   <main class="main-layout">
-    
-    <!-- LEFT: TRADINGVIEW MAIN CHART -->
+    <!-- LEFT: CHART -->
     <section class="chart-section">
       <div class="card chart-card">
         <div class="card-header">
@@ -167,23 +125,21 @@
             <span>ทองคำ (Gold Spot - XAUUSD) - Realtime TradingView</span>
           </div>
           <div class="card-actions">
-            <span class="live-badge">● LIVE</span>
+            <span class="badge-live">LIVE</span>
           </div>
         </div>
-        <div class="chart-container" id="tv_chart_container">
-          <!-- TradingView Widget dynamically inserted here -->
-        </div>
+        <div class="chart-container" id="tv_chart_container"></div>
       </div>
     </section>
 
-    <!-- RIGHT: TOOLS, CALCULATORS & TECHNICAL GAUGE -->
+    <!-- RIGHT: TOOLS -->
     <aside class="sidebar-section">
 
-      <!-- WORLD TRADING SESSIONS CLOCK -->
-      <div class="card" style="padding: 14px;">
-        <div class="card-title" style="font-size: 13px; margin-bottom: 10px;">
+      <!-- SESSION CLOCK -->
+      <div class="card" style="padding:14px">
+        <div class="card-title" style="font-size:13px;margin-bottom:10px">
           <span>🌍</span>
-          <span>ตารางเวลาตลาดโลก (World Sessions Clock)</span>
+          <span>World Sessions Clock</span>
         </div>
         <div class="sessions-grid">
           <div class="session-chip" id="session-sydney">
@@ -203,111 +159,107 @@
             <div class="session-time" id="time-newyork">00:00:00</div>
           </div>
         </div>
-        <div class="overlap-badge" id="session-overlap" style="display: none;">
+        <div class="overlap-badge" id="session-overlap" style="display:none">
           ⚡ Overlap: London & New York Active (ช่วงผันผวนสูง!)
         </div>
       </div>
 
-      <!-- TECHNICAL ANALYSIS GAUGE WIDGET -->
-      <div class="card" style="padding: 14px;">
-        <div class="card-header" style="margin-bottom: 8px;">
-          <div class="card-title" style="font-size: 13px;">
+      <!-- TECHNICAL GAUGE -->
+      <div class="card" style="padding:14px">
+        <div class="card-header" style="margin-bottom:8px">
+          <div class="card-title" style="font-size:13px">
             <span>🎯</span>
             <span>สัญญาณทางเทคนิคเรียลไทม์</span>
           </div>
         </div>
-        <div class="technical-wrapper" id="technical_gauge_container">
-          <!-- Dynamically inserted TradingView Technical Analysis Widget -->
-        </div>
+        <div class="technical-wrapper" id="technical_gauge_container"></div>
       </div>
 
-      <!-- JJ TRADER V11 PRO DASHBOARD CARD -->
-      <div class="card" style="padding: 14px; border: 1px solid var(--border-gold); background: rgba(18,22,32,0.85);">
-        <div class="card-header" style="margin-bottom: 8px; justify-content: space-between; align-items: center;">
-          <div class="card-title" style="font-size: 13px; color: var(--gold-primary); font-weight: 800;">
+      <!-- V11 PRO ENGINE -->
+      <div class="card v11-card" style="padding:14px">
+        <div class="card-header" style="margin-bottom:8px;padding:0;border:none">
+          <div class="card-title" style="font-size:13px;color:var(--gold-primary)">
             <span>⚡</span>
             <span>JJ TRADER V11 PRO ENGINE</span>
           </div>
-          <span style="font-size: 9px; background: rgba(255,215,0,0.15); border: 1px solid var(--border-gold); color: var(--gold-light); padding: 2px 6px; border-radius: 4px; font-weight: 700;">ALGO SIGNAL</span>
+          <span class="badge-live" style="color:var(--gold-light);font-size:9px;background:rgba(255,215,0,0.1);padding:2px 8px;border-radius:4px;border:1px solid var(--border-gold)">ALGO SIGNAL</span>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px;">
-          <div class="risk-result-card" style="flex-direction: column; padding: 6px 8px; text-align: center;">
-            <div class="result-label">สถานะ (STATUS)</div>
-            <div id="v11-status-badge" style="font-size: 11px; font-weight: 800; color: var(--accent-cyan); margin-top: 2px;">SCANNING</div>
+        <div class="v11-grid">
+          <div class="v11-stat">
+            <div class="v11-stat-label">สถานะ (Status)</div>
+            <div class="v11-stat-value" id="v11-status-badge" style="color:var(--accent-cyan)">SCANNING</div>
           </div>
-          <div class="risk-result-card" style="flex-direction: column; padding: 6px 8px; text-align: center;">
-            <div class="result-label">เทรนด์ (TREND)</div>
-            <div id="v11-trend-badge" style="font-size: 11px; font-weight: 800; color: var(--accent-green); margin-top: 2px;">BULLISH</div>
+          <div class="v11-stat">
+            <div class="v11-stat-label">เทรนด์ (Trend)</div>
+            <div class="v11-stat-value" id="v11-trend-badge" style="color:var(--accent-green)">BULLISH</div>
           </div>
         </div>
 
-        <div style="background: rgba(8,10,15,0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px; font-size: 10px; display: flex; flex-direction: column; gap: 5px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: var(--text-muted);">🟢 ENTRY ZONE (Fib 78.6%):</span>
-            <strong id="v11-val-entry" style="color: var(--accent-cyan); font-weight: 700;">$0.00</strong>
+        <div class="v11-details" style="margin-top:8px">
+          <div class="v11-row">
+            <span class="v11-label">🟢 ENTRY ZONE (Fib 78.6%)</span>
+            <span class="v11-value" style="color:var(--accent-cyan)" id="v11-val-entry">$0.00</span>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: var(--text-muted);">🎯 TP1 (Fib 38.2%):</span>
-            <strong id="v11-val-tp1" style="color: var(--gold-light); font-weight: 700;">$0.00</strong>
+          <div class="v11-row">
+            <span class="v11-label">🎯 TP1 (Fib 38.2%)</span>
+            <span class="v11-value" style="color:var(--gold-light)" id="v11-val-tp1">$0.00</span>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: var(--text-muted);">🏆 TP3 (Swing High/Low):</span>
-            <strong id="v11-val-tp3" style="color: var(--accent-green); font-weight: 700;">$0.00</strong>
+          <div class="v11-row">
+            <span class="v11-label">🏆 TP3 (Swing High/Low)</span>
+            <span class="v11-value" style="color:var(--accent-green)" id="v11-val-tp3">$0.00</span>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: var(--text-muted);">🛑 STOP LOSS (SL):</span>
-            <strong id="v11-val-sl" style="color: var(--accent-red); font-weight: 700;">$0.00</strong>
+          <div class="v11-row">
+            <span class="v11-label">🛑 STOP LOSS (SL)</span>
+            <span class="v11-value" style="color:var(--accent-red)" id="v11-val-sl">$0.00</span>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 4px; margin-top: 2px;">
-            <span style="color: var(--text-muted);">⚖️ Risk : Reward (TP1 / TP3):</span>
-            <strong id="v11-val-rr" style="color: var(--gold-primary); font-weight: 700;">1 : 2.5</strong>
+          <hr class="v11-divider">
+          <div class="v11-row">
+            <span class="v11-label">⚖️ Risk : Reward (TP1 / TP3)</span>
+            <span class="v11-value" style="color:var(--gold-primary)" id="v11-val-rr">1 : 2.5</span>
           </div>
         </div>
       </div>
 
-      <!-- ADVANCED TRADER TOOL PANELS -->
-      <div class="card" style="padding: 16px;">
-        <!-- TOOL TAB BUTTONS -->
+      <!-- TOOL PANELS -->
+      <div class="card" style="padding:16px">
         <div class="tool-tabs">
-          <button class="tool-tab-btn active" onclick="switchToolTab('tab-calc', this)">🧮 คำนวณ Lot & ทองแท่ง</button>
-          <button class="tool-tab-btn" onclick="switchToolTab('tab-news', this); loadForexNews();">📰 ข่าวเศรษฐกิจ</button>
-          <button class="tool-tab-btn" onclick="switchToolTab('tab-pivot', this)">📍 Pivot Points</button>
-          <button class="tool-tab-btn" onclick="switchToolTab('tab-alert', this)">🔔 เตือนราคา</button>
-          <button class="tool-tab-btn" onclick="switchToolTab('tab-trade-log', this); loadTradeLogs();">📊 ประวัติเทรด</button>
-          <button class="tool-tab-btn" onclick="switchToolTab('tab-journal', this)">📝 แผนเทรด</button>
+          <button class="tool-tab-btn active" onclick="switchToolTab('tab-calc', this)">🧮 Calculator</button>
+          <button class="tool-tab-btn" onclick="switchToolTab('tab-news', this); loadForexNews();">📰 News</button>
+          <button class="tool-tab-btn" onclick="switchToolTab('tab-pivot', this)">📍 Pivot</button>
+          <button class="tool-tab-btn" onclick="switchToolTab('tab-alert', this)">🔔 Alert</button>
+          <button class="tool-tab-btn" onclick="switchToolTab('tab-trade-log', this); loadTradeLogs();">📊 Trade Log</button>
+          <button class="tool-tab-btn" onclick="switchToolTab('tab-journal', this)">📝 Journal</button>
         </div>
 
-        <!-- TAB 1: GOLD & LOT SIZE CALCULATOR -->
+        <!-- TAB: CALCULATOR -->
         <div class="tool-panel active" id="tab-calc">
-          <div class="card-title" style="margin-bottom: 8px;">
+          <div class="card-title" style="margin-bottom:8px;font-size:12px">
             <span>🧮</span>
-            <span>เครื่องคำนวณราคาทองแท่งไทย & Lot Size</span>
+            <span>ทองแท่งไทย & Lot Size Calculator</span>
           </div>
-          
-          <!-- THAI GOLD CALCULATOR -->
           <div class="calc-grid-2col">
             <div class="calc-input-group">
               <label for="gold-spot-input">Gold Spot (USD/Oz)</label>
               <input type="number" id="gold-spot-input" class="calc-input" value="2420.00" step="0.5" oninput="calculateThaiGold(); calculatePivot();">
             </div>
             <div class="calc-input-group">
-              <label for="usd-thb-input">อัตราแลกเปลี่ยน (USD/THB)</label>
+              <label for="usd-thb-input">USD/THB</label>
               <input type="number" id="usd-thb-input" class="calc-input" value="36.25" step="0.05" oninput="calculateThaiGold()">
             </div>
           </div>
-          
-          <div class="risk-result-card" style="margin-top: 8px;">
-            <div class="result-label">ราคาทองแท่ง 96.5% (ต่อบาททอง)</div>
-            <div class="risk-val-large" id="thai-gold-result">฿0.00</div>
+          <div class="risk-result-card">
+            <div>
+              <div class="result-label">ราคาทองแท่ง 96.5% (ต่อบาททอง)</div>
+              <div class="risk-val-large" id="thai-gold-result">฿0.00</div>
+            </div>
           </div>
 
-          <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 12px 0;">
+          <hr style="border:none;border-top:1px solid var(--border-subtle);margin:12px 0">
 
-          <!-- POSITION SIZE / RISK CALCULATOR -->
-          <div class="card-title" style="font-size: 13px; margin-bottom: 6px;">
+          <div class="card-title" style="font-size:12px;margin-bottom:6px">
             <span>⚖️</span>
-            <span>คำนวณขนาดไม้เทรดทองคำ (Position Size Calculator)</span>
+            <span>Position Size Calculator</span>
           </div>
           <div class="calc-grid-2col">
             <div class="calc-input-group">
@@ -319,88 +271,82 @@
               <input type="number" id="risk-percent" class="calc-input" value="1" step="0.5" oninput="calculateRiskLot()">
             </div>
           </div>
-          <div class="calc-grid-2col" style="margin-top: 6px;">
+          <div class="calc-grid-2col" style="margin-top:6px">
             <div class="calc-input-group">
-              <label for="entry-price">ราคาเข้า (Entry)</label>
+              <label for="entry-price">Entry</label>
               <input type="number" id="entry-price" class="calc-input" value="2420.00" step="0.5" oninput="calculateRiskLot()">
             </div>
             <div class="calc-input-group">
-              <label for="sl-price">ราคาตัดขาดทุน (SL)</label>
+              <label for="sl-price">Stop Loss</label>
               <input type="number" id="sl-price" class="calc-input" value="2415.00" step="0.5" oninput="calculateRiskLot()">
             </div>
           </div>
-          <div class="calc-grid-2col" style="margin-top: 6px;">
+          <div class="calc-grid-2col" style="margin-top:6px">
             <div class="calc-input-group">
-              <label for="tp-price">ราคาทำกำไร (TP)</label>
+              <label for="tp-price">Take Profit</label>
               <input type="number" id="tp-price" class="calc-input" value="2435.00" step="0.5" oninput="calculateRiskLot()">
             </div>
             <div class="calc-input-group">
-              <label for="tp-pip-result">เป้ากำไร (Pips / $)</label>
-              <input type="text" id="tp-pip-result" class="calc-input" value="150 pips ($15.0)" readonly style="color:var(--accent-green);font-weight:700;">
+              <label for="tp-pip-result">เป้าหมาย (Pips/$)</label>
+              <input type="text" id="tp-pip-result" class="calc-input" value="150 pips ($15.0)" readonly style="color:var(--accent-green);font-weight:700">
             </div>
           </div>
           <div class="risk-result-card">
             <div>
-              <div class="result-label">ยอมรับความเสี่ยงได้ (Risk)</div>
+              <div class="result-label">Risk ที่ยอมรับได้</div>
               <div class="risk-val" id="risk-amount-usd">$10.00</div>
             </div>
-            <div style="text-align: center;">
-              <div class="result-label">อัตราผลตอบแทน (RRR)</div>
-              <div class="risk-val" id="rrr-ratio-val" style="color: var(--accent-cyan);">1 : 3.0</div>
+            <div style="text-align:center">
+              <div class="result-label">RRR</div>
+              <div class="risk-val" id="rrr-ratio-val" style="color:var(--accent-cyan)">1 : 3.0</div>
             </div>
-            <div style="text-align: right;">
-              <div class="result-label">ขนาด Lot ที่แนะนำ</div>
-              <div class="risk-val" id="recommended-lot" style="color: var(--gold-light);">0.02 Lot</div>
+            <div style="text-align:right">
+              <div class="result-label">แนะนำ Lot</div>
+              <div class="risk-val" id="recommended-lot" style="color:var(--gold-light)">0.02 Lot</div>
             </div>
           </div>
         </div>
 
-        <!-- TAB 2: ECONOMIC NEWS CALENDAR (FOREXFACTORY) -->
+        <!-- TAB: NEWS -->
         <div class="tool-panel" id="tab-news">
-          <div class="card-title" style="margin-bottom: 8px;">
+          <div class="card-title" style="margin-bottom:8px;font-size:12px">
             <span>📰</span>
-            <span>ปฏิทินข่าวเศรษฐกิจ (ForexFactory Calendar)</span>
+            <span>ปฏิทินข่าวเศรษฐกิจ</span>
           </div>
-
-          <!-- NEWS FILTER & RANGE CONTROLS -->
-          <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; background: rgba(8,10,15,0.6); padding: 8px; border-radius: 8px; border: 1px solid var(--border-gold);">
-            <!-- Date Period Selector Buttons -->
-            <div style="display: flex; gap: 4px; overflow-x: auto;">
-              <button class="quick-btn news-period-btn" onclick="changeNewsPeriod('yesterday', this)" style="font-size:10px;padding:3px 8px;">◀️ เมื่อวาน</button>
-              <button class="quick-btn news-period-btn" onclick="changeNewsPeriod('today', this)" style="font-size:10px;padding:3px 8px;">📅 วันนี้</button>
-              <button class="quick-btn news-period-btn active" onclick="changeNewsPeriod('thisweek', this)" style="font-size:10px;padding:3px 8px;">🗓️ สัปดาห์นี้</button>
-              <button class="quick-btn news-period-btn" onclick="changeNewsPeriod('nextweek', this)" style="font-size:10px;padding:3px 8px;">⏩ สัปดาห์หน้า</button>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;background:var(--bg-surface);padding:8px;border-radius:var(--radius-sm);border:1px solid var(--border-gold)">
+            <div style="display:flex;gap:4px;overflow-x:auto">
+              <button class="btn-tf news-period-btn" onclick="changeNewsPeriod('yesterday', this)" style="font-size:10px;padding:3px 8px">◀️ เมื่อวาน</button>
+              <button class="btn-tf news-period-btn" onclick="changeNewsPeriod('today', this)" style="font-size:10px;padding:3px 8px">📅 วันนี้</button>
+              <button class="btn-tf news-period-btn active" onclick="changeNewsPeriod('thisweek', this)" style="font-size:10px;padding:3px 8px">🗓️ สัปดาห์นี้</button>
+              <button class="btn-tf news-period-btn" onclick="changeNewsPeriod('nextweek', this)" style="font-size:10px;padding:3px 8px">⏩ สัปดาห์หน้า</button>
             </div>
-            
-            <!-- Impact Filter Buttons -->
-            <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px; font-size: 10px;">
-              <div style="display: flex; gap: 4px;">
-                <button class="quick-btn news-impact-btn active" onclick="filterNewsImpact('all', this)" style="font-size:9px;padding:2px 6px;">ทั้งหมด</button>
-                <button class="quick-btn news-impact-btn" onclick="filterNewsImpact('high', this)" style="font-size:9px;padding:2px 6px;color:var(--accent-red);">🔴 กล่องแดง</button>
-                <button class="quick-btn news-impact-btn" onclick="filterNewsImpact('medium', this)" style="font-size:9px;padding:2px 6px;color:#ffa000;">🟠 กล่องส้ม</button>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;font-size:10px">
+              <div style="display:flex;gap:4px">
+                <button class="btn-tf news-impact-btn active" onclick="filterNewsImpact('all', this)" style="font-size:9px;padding:2px 6px">ทั้งหมด</button>
+                <button class="btn-tf news-impact-btn" onclick="filterNewsImpact('high', this)" style="font-size:9px;padding:2px 6px;color:var(--accent-red)">🔴 High</button>
+                <button class="btn-tf news-impact-btn" onclick="filterNewsImpact('medium', this)" style="font-size:9px;padding:2px 6px;color:#ffa000">🟠 Medium</button>
               </div>
-              <button onclick="loadForexNews(true)" style="background: transparent; border: 1px solid var(--border-gold); color: var(--gold-light); border-radius: 4px; padding: 3px 8px; font-size: 10px; cursor: pointer;" title="ดึงข้อมูลข่าวล่าสุด">🔄 รีเฟรช</button>
+              <button onclick="loadForexNews(true)" style="background:transparent;border:1px solid var(--border-gold);color:var(--gold-light);border-radius:4px;padding:3px 8px;font-size:10px;cursor:pointer" title="ดึงข้อมูลล่าสุด">🔄 Refresh</button>
             </div>
           </div>
-
-          <div id="news-list-container" style="max-height: 280px; overflow-y: auto;">
-            <div style="color:var(--text-muted);font-size:11px;text-align:center;padding:15px;">⏳ กำลังโหลดตารางข่าวสาร...</div>
+          <div id="news-list-container" style="max-height:280px;overflow-y:auto">
+            <div class="empty-state">⏳ กำลังโหลดตารางข่าวสาร...</div>
           </div>
         </div>
 
-        <!-- TAB 3: PIVOT POINTS CALCULATOR -->
+        <!-- TAB: PIVOT -->
         <div class="tool-panel" id="tab-pivot">
-          <div class="card-title" style="margin-bottom: 8px;">
+          <div class="card-title" style="margin-bottom:8px;font-size:12px">
             <span>📍</span>
             <span>เรียลไทม์ แนวรับ - แนวต้าน (Pivot Points)</span>
           </div>
-          <div class="calc-grid-2col" style="margin-bottom: 8px;">
+          <div class="calc-grid-2col" style="margin-bottom:8px">
             <div class="calc-input-group">
-              <label for="gold-range-input">กรอบราคาประมาณการ ($)</label>
+              <label for="gold-range-input">กรอบราคา ($)</label>
               <input type="number" id="gold-range-input" class="calc-input" value="30.00" step="1" oninput="calculatePivot()">
             </div>
             <div class="calc-input-group">
-              <label for="pivot-algo">สูตรคำนวณ</label>
+              <label for="pivot-algo">สูตร</label>
               <select id="pivot-algo" class="calc-input" onchange="calculatePivot()">
                 <option value="fibonacci">Fibonacci Pivot</option>
                 <option value="camarilla">Camarilla Pivot</option>
@@ -416,68 +362,62 @@
                 <th>ราคา ($)</th>
               </tr>
             </thead>
-            <tbody id="pivot-table-body">
-              <!-- Pivot table dynamically updated -->
-            </tbody>
+            <tbody id="pivot-table-body"></tbody>
           </table>
         </div>
 
-        <!-- TAB 3: PRICE ALERT TICKER -->
+        <!-- TAB: ALERT -->
         <div class="tool-panel" id="tab-alert">
-          <div class="card-title" style="margin-bottom: 8px;">
+          <div class="card-title" style="margin-bottom:8px;font-size:12px">
             <span>🔔</span>
-            <span>ตั้งเตือนราคาทองคำเรียลไทม์ (Audio Alert)</span>
+            <span>ตั้งเตือนราคาเรียลไทม์</span>
           </div>
           <div class="calc-grid-2col">
             <div class="calc-input-group">
-              <label for="alert-target-price">เป้าหมายราคา ($)</label>
+              <label for="alert-target-price">เป้าหมาย ($)</label>
               <input type="number" id="alert-target-price" class="calc-input" placeholder="เช่น 2450.00" step="0.5">
             </div>
             <div class="calc-input-group">
               <label for="alert-condition">เงื่อนไข</label>
               <select id="alert-condition" class="calc-input">
-                <option value="above">ราคาสูงกว่า หรือเท่ากับ (≥)</option>
-                <option value="below">ราคาต่ำกว่า หรือเท่ากับ (≤)</option>
+                <option value="above">ราคาสูงกว่า (≥)</option>
+                <option value="below">ราคาต่ำกว่า (≤)</option>
               </select>
             </div>
           </div>
-          <button class="btn-login" style="margin-top: 8px; font-size: 13px; padding: 10px;" onclick="addPriceAlert()">➕ เพิ่มการตั้งเตือน</button>
-          
-          <div class="alert-list-container" id="alerts-list" style="margin-top: 10px;">
-            <!-- Alert items populated here -->
+          <button class="btn-primary" style="margin-top:8px;font-size:13px;padding:10px" onclick="addPriceAlert()">➕ เพิ่มการตั้งเตือน</button>
+          <div class="alert-list" id="alerts-list">
+            <div class="empty-state">ยังไม่มีรายการตั้งเตือน...</div>
           </div>
         </div>
 
-        <!-- TAB 5: TRADE JOURNAL & PERFORMANCE ANALYTICS -->
+        <!-- TAB: TRADE LOG -->
         <div class="tool-panel" id="tab-trade-log">
-          <div class="card-title" style="margin-bottom: 8px;">
+          <div class="card-title" style="margin-bottom:8px;font-size:12px">
             <span>📊</span>
-            <span>บันทึกและวิเคราะห์ประวัติการเทรด (Trade Log & Analytics)</span>
+            <span>บันทึกและวิเคราะห์ประวัติเทรด</span>
           </div>
 
-          <!-- P&L / WIN RATE SUMMARY DASHBOARD -->
-          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px;">
-            <div class="risk-result-card" style="flex-direction:column; padding: 6px 8px; text-align: center;">
-              <div class="result-label">เทรดทั้งหมด</div>
-              <div class="risk-val" id="log-stat-count" style="color:var(--gold-primary); font-size: 14px;">0</div>
+          <div class="trade-log-summary">
+            <div class="trade-log-stat">
+              <div class="v11-stat-label">เทรดทั้งหมด</div>
+              <div class="risk-val" id="log-stat-count" style="color:var(--gold-primary);font-size:14px">0</div>
             </div>
-            <div class="risk-result-card" style="flex-direction:column; padding: 6px 8px; text-align: center;">
-              <div class="result-label">Win Rate</div>
-              <div class="risk-val" id="log-stat-winrate" style="color:var(--accent-green); font-size: 14px;">0%</div>
+            <div class="trade-log-stat">
+              <div class="v11-stat-label">Win Rate</div>
+              <div class="risk-val" id="log-stat-winrate" style="color:var(--accent-green);font-size:14px">0%</div>
             </div>
-            <div class="risk-result-card" style="flex-direction:column; padding: 6px 8px; text-align: center;">
-              <div class="result-label">กำไร/ขาดทุนรวม</div>
-              <div class="risk-val" id="log-stat-pnl" style="color:var(--text-main); font-size: 14px;">$0.00</div>
+            <div class="trade-log-stat">
+              <div class="v11-stat-label">P&L</div>
+              <div class="risk-val" id="log-stat-pnl" style="font-size:14px">$0.00</div>
             </div>
           </div>
 
-          <!-- ADD TRADE ORDER FORM -->
-          <div style="background: rgba(8,10,15,0.7); border: 1px solid var(--border-gold); border-radius: 8px; padding: 10px; margin-bottom: 10px;">
-            <div style="font-size: 11px; font-weight: 700; color: var(--gold-light); margin-bottom: 6px;">➕ บันทึกการเข้าออเดอร์ใหม่</div>
-            
+          <div class="trade-form">
+            <div class="trade-form-title">➕ บันทึกการเข้าออเดอร์ใหม่</div>
             <div class="calc-grid-2col">
               <div class="calc-input-group">
-                <label>สินทรัพย์ / ทิศทาง</label>
+                <label>ทิศทาง</label>
                 <select id="log-input-dir" class="calc-input">
                   <option value="BUY">🟢 BUY (ซื้อ)</option>
                   <option value="SELL">🔴 SELL (ขาย)</option>
@@ -488,46 +428,40 @@
                 <input type="number" id="log-input-lot" class="calc-input" value="0.01" step="0.01" min="0.01">
               </div>
             </div>
-
-            <div class="calc-grid-2col" style="margin-top: 6px;">
+            <div class="calc-grid-2col" style="margin-top:6px">
               <div class="calc-input-group">
-                <label>ราคาเข้า (Entry Price)</label>
+                <label>Entry Price</label>
                 <input type="number" id="log-input-entry" class="calc-input" placeholder="เช่น 2420.00" step="0.1">
               </div>
               <div class="calc-input-group">
-                <label>ราคาปิด (Close Price)</label>
+                <label>Close Price</label>
                 <input type="number" id="log-input-close" class="calc-input" placeholder="เช่น 2435.00" step="0.1">
               </div>
             </div>
-
-            <div class="calc-input-group" style="margin-top: 6px;">
-              <label>เหตุผลในการเข้าเทรด (Trade Reason / Notes)</label>
-              <input type="text" id="log-input-note" class="calc-input" placeholder="เช่น ชนแนวรับ H4 + เกิดกลับตัว Bullish Engulfing">
+            <div class="calc-input-group" style="margin-top:6px">
+              <label>หมายเหตุ (Note)</label>
+              <input type="text" id="log-input-note" class="calc-input" placeholder="เช่น ชนแนวรับ H4 + Bullish Engulfing">
             </div>
-
-            <button class="btn-login" style="margin-top: 8px; font-size: 12px; padding: 8px;" onclick="addTradeLogRecord()">💾 บันทึกประวัติการเทรดนี้</button>
+            <button class="btn-primary" style="margin-top:8px;font-size:12px;padding:8px" onclick="addTradeLogRecord()">💾 บันทึกประวัติเทรด</button>
           </div>
 
-          <!-- HISTORICAL TRADES LIST -->
-          <div id="trade-log-list-container" style="max-height: 200px; overflow-y: auto;">
-            <div style="color:var(--text-muted);font-size:11px;text-align:center;padding:12px;">ยังไม่มีประวัติการเทรด...</div>
+          <div id="trade-log-list-container" style="max-height:200px;overflow-y:auto">
+            <div class="empty-state">ยังไม่มีประวัติการเทรด...</div>
           </div>
         </div>
 
-        <!-- TAB 4: TRADE JOURNAL & NOTES -->
+        <!-- TAB: JOURNAL -->
         <div class="tool-panel" id="tab-journal">
-          <div class="card-title" style="margin-bottom: 8px;">
+          <div class="card-title" style="margin-bottom:8px;font-size:12px">
             <span>📝</span>
-            <span>บันทึกแผนเทรด (Trade Journal Sync)</span>
+            <span>บันทึกแผนเทรด (Trade Journal)</span>
           </div>
           <textarea id="journal-text" class="journal-textarea" placeholder="บันทึกแผนเทรดวันนี้ เช่น: รอ Buy ที่แนวรับ Fibonacci $2410 เป้าหมาย R1 $2435..."></textarea>
-          <button class="btn-login" style="margin-top: 6px; font-size: 13px; padding: 8px;" onclick="addNote()">💾 บันทึกแผนเทรด</button>
-          
-          <div class="notes-list-container" id="notes-list" style="margin-top: 10px;">
-            <!-- Saved notes populated here -->
+          <button class="btn-primary" style="margin-top:6px;font-size:13px;padding:8px" onclick="addNote()">💾 บันทึกแผนเทรด</button>
+          <div class="notes-list-container" id="notes-list" style="margin-top:10px">
+            <div class="empty-state">ยังไม่มีแผนบันทึก...</div>
           </div>
         </div>
-
       </div>
 
     </aside>
@@ -535,17 +469,11 @@
 
   <!-- FOOTER -->
   <footer class="footer">
-    <div>
-      <span class="gold-highlight">JJ TRADER</span> © 2026 Powered by TradingView Realtime API. All rights reserved.
-    </div>
-    <div>
-      สถานะระบบ: <span style="color: var(--accent-green);">● ปกติ (Connected)</span>
-    </div>
+    <div><span class="text-gold">JJ TRADER</span> © 2026 Powered by TradingView</div>
+    <div>สถานะ: <span style="color:var(--accent-green)">● ปกติ</span></div>
   </footer>
 
-  <!-- Custom App Script -->
-  <script src="app.js?v=16.0"></script>
-  <!-- JJ TRADER V11 PRO Engine -->
-  <script src="v11engine.js?v=16.0"></script>
+  <script src="app.js?v=18.0"></script>
+  <script src="v11engine.js?v=18.0"></script>
 </body>
 </html>

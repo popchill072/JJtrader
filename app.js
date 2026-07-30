@@ -316,7 +316,7 @@ function renderTechnicalGauge() {
 
 function changeSymbol(symbol, title, btnElement) {
   currentSymbol = symbol;
-  document.querySelectorAll('.quick-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.btn-asset').forEach(btn => btn.classList.remove('active'));
   if (btnElement) btnElement.classList.add('active');
   const titleEl = document.getElementById('current-asset-title');
   if (titleEl) titleEl.innerHTML = `<span>📊</span><span>${title} - Realtime TradingView</span>`;
@@ -327,7 +327,7 @@ function changeSymbol(symbol, title, btnElement) {
 
 function changeTimeframe(tf, btnElement) {
   currentInterval = tf;
-  document.querySelectorAll('.tf-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.btn-tf').forEach(btn => btn.classList.remove('active'));
   if (btnElement) btnElement.classList.add('active');
   savePreferences();
   renderMainChart();
@@ -495,8 +495,8 @@ async function loadNotes() {
       const item = document.createElement('div');
       item.className = 'note-item';
       item.innerHTML = `
-        <div><div>${escapeHtml(note.text)}</div><div class="note-date">${note.date}</div></div>
-        <button class="delete-note-btn" onclick="deleteNote('${note.id}')">✕</button>
+        <div style="flex:1"><div>${escapeHtml(note.text)}</div><div class="note-date">${note.date}</div></div>
+        <button class="btn-icon" onclick="deleteNote('${note.id}')">✕</button>
       `;
       notesContainer.appendChild(item);
     });
@@ -599,10 +599,7 @@ function renderNewsListWithCountdown() {
 
   filtered.slice(0, 30).forEach((item, index) => {
     const el = document.createElement('div');
-    el.className = 'note-item';
-    el.style.display = 'flex';
-    el.style.flexDirection = 'column';
-    el.style.gap = '4px';
+    el.className = 'news-item';
 
     let impactBadge = '';
     const impactUpper = (item.impact || 'low').toLowerCase();
@@ -766,10 +763,10 @@ function renderPriceAlerts() {
     const item = document.createElement('div');
     item.className = 'alert-item';
     const condText = alert.condition === 'above' ? '≥ (สูงกว่า)' : '≤ (ต่ำกว่า)';
-    item.innerHTML = `
-      <div>🔔 ${alert.symbol || 'XAUUSD'} ${condText} <strong>$${parseFloat(alert.target_price).toFixed(2)}</strong></div>
-      <button class="delete-note-btn" onclick="deletePriceAlert('${alert.id}')">✕</button>
-    `;
+      item.innerHTML = `
+        <div style="flex:1">🔔 ${alert.symbol || 'XAUUSD'} ${condText} <strong>$${parseFloat(alert.target_price).toFixed(2)}</strong></div>
+        <button class="btn-icon" onclick="deletePriceAlert('${alert.id}')">✕</button>
+      `;
     container.appendChild(item);
   });
 }
@@ -971,38 +968,34 @@ async function loadTradeLogs() {
   container.innerHTML = '';
   logs.slice(0, 30).forEach(l => {
     const item = document.createElement('div');
-    item.className = 'note-item';
-    item.style.display = 'flex';
-    item.style.justifyContent = 'space-between';
-    item.style.alignItems = 'center';
-    item.style.padding = '8px 10px';
+    item.className = 'trade-item';
 
     const isWin = l.result === 'WIN';
     const dirBadge = l.direction === 'BUY'
-      ? '<span style="color:var(--accent-green);font-weight:800;">🟢 BUY</span>'
-      : '<span style="color:var(--accent-red);font-weight:800;">🔴 SELL</span>';
+      ? '<span class="badge-dir buy">🟢 BUY</span>'
+      : '<span class="badge-dir sell">🔴 SELL</span>';
 
     const resultBadge = isWin
-      ? '<span style="background:rgba(0,230,118,0.15);border:1px solid var(--accent-green);color:var(--accent-green);padding:1px 5px;border-radius:4px;font-size:9px;font-weight:800;">WIN</span>'
-      : '<span style="background:rgba(255,82,82,0.15);border:1px solid var(--accent-red);color:var(--accent-red);padding:1px 5px;border-radius:4px;font-size:9px;font-weight:800;">LOSS</span>';
+      ? '<span class="badge-result win">WIN</span>'
+      : '<span class="badge-result loss">LOSS</span>';
 
-    const pnlColor = isWin ? 'color:var(--accent-green)' : 'color:var(--accent-red)';
+    const pnlClass = parseFloat(l.pnl) >= 0 ? 'pnl-positive' : 'pnl-negative';
     const pnlText = `${parseFloat(l.pnl) >= 0 ? '+' : ''}$${l.pnl}`;
 
     item.innerHTML = `
-      <div style="flex:1;">
-        <div style="display:flex; align-items:center; gap:6px; font-size:11px;">
+      <div class="trade-info">
+        <div class="trade-row">
           ${dirBadge}
-          <strong style="color:var(--gold-light);">${l.symbol}</strong>
-          <span style="color:var(--text-muted);">${l.lot} Lot</span>
+          <strong class="text-gold">${l.symbol}</strong>
+          <span style="color:var(--text-muted)">${l.lot} Lot</span>
           ${resultBadge}
         </div>
-        <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">
-          $${l.entry} ➔ $${l.close} | P&L: <strong style="${pnlColor};">${pnlText}</strong>
+        <div class="trade-row-secondary">
+          $${l.entry} ➔ $${l.close} | P&L: <strong class="${pnlClass}">${pnlText}</strong>
         </div>
-        ${l.note !== '-' ? `<div style="font-size:9px; color:var(--gold-light); opacity:0.8; margin-top:2px;">💡 ${escapeHtml(l.note)}</div>` : ''}
+        ${l.note !== '-' ? `<div class="trade-note">💡 ${escapeHtml(l.note)}</div>` : ''}
       </div>
-      <button class="delete-note-btn" onclick="deleteTradeLogRecord('${l.id}')" title="ลบ">✕</button>
+      <button class="btn-icon" onclick="deleteTradeLogRecord('${l.id}')" title="ลบ">✕</button>
     `;
     container.appendChild(item);
   });
