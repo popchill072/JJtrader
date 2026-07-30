@@ -316,8 +316,45 @@ body {
   flex: 1;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1300px) {
   .main-layout { grid-template-columns: 1fr; }
+}
+
+/* ── CHART GRID (2x2) ── */
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  height: 100%;
+}
+
+@media (max-width: 800px) {
+  .chart-grid { grid-template-columns: 1fr; }
+}
+
+.chart-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 320px;
+}
+
+.chart-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.chart-title {
+  font-size: 11px;
+}
+
+.chart-container-sm {
+  flex: 1;
+  min-height: 280px;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  overflow: hidden;
 }
 
 /* ── CARDS ── */
@@ -348,7 +385,6 @@ body {
   display: flex; align-items: center; gap: 8px;
 }
 
-.card-actions { display: flex; align-items: center; gap: 8px; }
 
 .badge-live {
   font-size: 10px; font-weight: 700;
@@ -371,17 +407,7 @@ body {
   50% { opacity: 0.3; }
 }
 
-.chart-card {
-  display: flex; flex-direction: column;
-  height: 100%; min-height: 620px;
-}
 
-.chart-container {
-  flex: 1; width: 100%;
-  min-height: 560px;
-  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-  overflow: hidden;
-}
 
 /* ── SIDEBAR ── */
 .sidebar-section {

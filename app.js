@@ -2,8 +2,14 @@
 const API_BASE = 'https://jj-trader-api.popchill072.workers.dev';
 
 let currentSymbol = 'OANDA:XAUUSD';
-let currentInterval = '240';
-let widgetInstance = null;
+let widgetInstances = [];
+
+const CHART_TFS = [
+  { id: 'tv_chart_0', interval: '3', label: '3 นาที' },
+  { id: 'tv_chart_1', interval: '30', label: '30 นาที' },
+  { id: 'tv_chart_2', interval: '60', label: '1 ชั่วโมง' },
+  { id: 'tv_chart_3', interval: '240', label: '4 ชั่วโมง' },
+];
 let priceAlerts = [];
 let sessionToken = localStorage.getItem('jj_session_token') || null;
 let currentUsername = localStorage.getItem('jj_username') || null;
@@ -250,37 +256,37 @@ function initApp() {
 let customIndicatorId = localStorage.getItem('jj_custom_indicator_id') || '';
 
 function renderMainChart() {
-  const container = document.getElementById('tv_chart_container');
-  if (!container) return;
-  container.innerHTML = '';
+  widgetInstances.forEach(w => { try { w.remove(); } catch(e) {} });
+  widgetInstances = [];
 
-  const widgetConfig = {
-    "autosize": true,
-    "symbol": currentSymbol,
-    "interval": currentInterval,
-    "timezone": "Asia/Bangkok",
-    "theme": "dark",
-    "style": "1",
-    "locale": "th",
-    "toolbar_bg": "#080a0f",
-    "enable_publishing": false,
-    "allow_symbol_change": true,
-    "hide_side_toolbar": false,
-    "withdateranges": true,
-    "save_image": true,
-    "auto_save_change": true,
-    "client_id": "jjtrader_platform",
-    "user_id": currentUsername || "default_trader",
-    "container_id": "tv_chart_container"
-  };
+  CHART_TFS.forEach((cfg, idx) => {
+    const container = document.getElementById(cfg.id);
+    if (!container) return;
+    container.innerHTML = '';
 
-  if (customIndicatorId) {
-    widgetConfig.studies = [customIndicatorId];
-  }
-
-  if (typeof TradingView !== 'undefined' && TradingView.widget) {
-    widgetInstance = new TradingView.widget(widgetConfig);
-  }
+    const studies = customIndicatorId ? [customIndicatorId] : [];
+    const widget = new TradingView.widget({
+      autosize: true,
+      symbol: currentSymbol,
+      interval: cfg.interval,
+      timezone: "Asia/Bangkok",
+      theme: "dark",
+      style: "1",
+      locale: "th",
+      toolbar_bg: "#080a0f",
+      enable_publishing: false,
+      allow_symbol_change: true,
+      hide_side_toolbar: false,
+      withdateranges: true,
+      save_image: true,
+      auto_save_change: false,
+      client_id: "jjtrader_platform",
+      user_id: currentUsername || "default_trader",
+      container_id: cfg.id,
+      studies
+    });
+    widgetInstances[idx] = widget;
+  });
 }
 
 function setCustomIndicator(indicatorId) {
@@ -318,18 +324,20 @@ function changeSymbol(symbol, title, btnElement) {
   currentSymbol = symbol;
   document.querySelectorAll('.btn-asset').forEach(btn => btn.classList.remove('active'));
   if (btnElement) btnElement.classList.add('active');
-  const titleEl = document.getElementById('current-asset-title');
-  if (titleEl) titleEl.innerHTML = `<span>📊</span><span>${title} - Realtime TradingView</span>`;
+
+  const shortTitle = title.replace(/<[^>]*>/g, '').split('(')[0].trim();
+  CHART_TFS.forEach((cfg, idx) => {
+    const labelEl = document.getElementById(`chart-label-${idx}`);
+    if (labelEl) labelEl.textContent = `${shortTitle} - ${cfg.label}`;
+  });
+
   savePreferences();
   renderMainChart();
   renderTechnicalGauge();
 }
 
 function changeTimeframe(tf, btnElement) {
-  currentInterval = tf;
-  document.querySelectorAll('.btn-tf').forEach(btn => btn.classList.remove('active'));
-  if (btnElement) btnElement.classList.add('active');
-  savePreferences();
+  // Multi-chart mode: no single timeframe to change
   renderMainChart();
 }
 
@@ -340,7 +348,6 @@ async function loadPreferences() {
     if (data.balance && document.getElementById('acc-balance')) document.getElementById('acc-balance').value = data.balance;
     if (data.risk_pct && document.getElementById('risk-percent')) document.getElementById('risk-percent').value = data.risk_pct;
     if (data.symbol) currentSymbol = data.symbol;
-    if (data.timeframe) currentInterval = data.timeframe;
     calculateRiskLot();
     calculatePivot();
   } catch (e) { /* offline fallback */ }
@@ -352,7 +359,7 @@ async function savePreferences() {
   const balance = parseFloat(balanceEl ? balanceEl.value : 1000) || 1000;
   const risk_pct = parseFloat(riskEl ? riskEl.value : 1) || 1;
   try {
-    await api('POST', '/api/preferences', { balance, risk_pct, symbol: currentSymbol, timeframe: currentInterval });
+    await api('POST', '/api/preferences', { balance, risk_pct, symbol: currentSymbol });
   } catch (e) { /* silent */ }
 }
 

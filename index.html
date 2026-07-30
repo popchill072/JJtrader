@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logo.jpg">
-  <link rel="stylesheet" href="styles.css?v=18.0">
+  <link rel="stylesheet" href="styles.css?v=19.0">
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body>
@@ -104,12 +104,7 @@
       <button class="btn-asset" onclick="changeSymbol('BINANCE:BTCUSDT', 'บิตคอยน์ (Bitcoin)', this)"><span>₿</span>BTC/USD</button>
     </div>
     <div class="timeframe-selector">
-      <span class="tf-label">TF:</span>
-      <button class="btn-tf" onclick="changeTimeframe('15', this)">15M</button>
-      <button class="btn-tf" onclick="changeTimeframe('60', this)">1H</button>
-      <button class="btn-tf active" onclick="changeTimeframe('240', this)">4H</button>
-      <button class="btn-tf" onclick="changeTimeframe('D', this)">1D</button>
-      <button class="btn-tf" onclick="changeTimeframe('W', this)">1W</button>
+      <span class="tf-label">📈 4 กราฟ: 3นาที · 30นาที · 1ชม. · 4ชม.</span>
       <button class="btn-indicator" onclick="promptCustomIndicator()" title="ตั้งค่าอินดิเคเตอร์">⚙️ Custom Indicator</button>
     </div>
   </div>
@@ -118,17 +113,47 @@
   <main class="main-layout">
     <!-- LEFT: CHART -->
     <section class="chart-section">
-      <div class="card chart-card">
-        <div class="card-header">
-          <div class="card-title" id="current-asset-title">
-            <span>📊</span>
-            <span>ทองคำ (Gold Spot - XAUUSD) - Realtime TradingView</span>
-          </div>
-          <div class="card-actions">
+      <div class="chart-grid" id="chart-grid">
+        <div class="card chart-card">
+          <div class="chart-card-header">
+            <div class="card-title chart-title">
+              <span>📊</span>
+              <span id="chart-label-0">XAU/USD - 3 นาที</span>
+            </div>
             <span class="badge-live">LIVE</span>
           </div>
+          <div class="chart-container-sm" id="tv_chart_0"></div>
         </div>
-        <div class="chart-container" id="tv_chart_container"></div>
+        <div class="card chart-card">
+          <div class="chart-card-header">
+            <div class="card-title chart-title">
+              <span>📊</span>
+              <span id="chart-label-1">XAU/USD - 30 นาที</span>
+            </div>
+            <span class="badge-live">LIVE</span>
+          </div>
+          <div class="chart-container-sm" id="tv_chart_1"></div>
+        </div>
+        <div class="card chart-card">
+          <div class="chart-card-header">
+            <div class="card-title chart-title">
+              <span>📊</span>
+              <span id="chart-label-2">XAU/USD - 1 ชั่วโมง</span>
+            </div>
+            <span class="badge-live">LIVE</span>
+          </div>
+          <div class="chart-container-sm" id="tv_chart_2"></div>
+        </div>
+        <div class="card chart-card">
+          <div class="chart-card-header">
+            <div class="card-title chart-title">
+              <span>📊</span>
+              <span id="chart-label-3">XAU/USD - 4 ชั่วโมง</span>
+            </div>
+            <span class="badge-live">LIVE</span>
+          </div>
+          <div class="chart-container-sm" id="tv_chart_3"></div>
+        </div>
       </div>
     </section>
 
@@ -473,7 +498,7 @@
     <div>สถานะ: <span style="color:var(--accent-green)">● ปกติ</span></div>
   </footer>
 
-  <script src="app.js?v=18.0"></script>
-  <script src="v11engine.js?v=18.0"></script>
+  <script src="app.js?v=19.0"></script>
+  <script src="v11engine.js?v=19.0"></script>
 </body>
 </html>
