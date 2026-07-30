@@ -12,8 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - run: npm i -g wrangler@3
+
       - name: Deploy Worker API
-        run: npx --yes wrangler@3 deploy --config worker/wrangler.toml
+        run: wrangler deploy --config worker/wrangler.toml
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
