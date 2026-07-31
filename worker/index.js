@@ -12,6 +12,7 @@ const ALLOWED_ORIGINS = [
 
 let newsCache = { data: null, ts: 0 };
 const NEWS_CACHE_TTL = 60 * 1000;
+const NEWS_DB_TTL = 30 * 60 * 1000;
 const NEWS_HTTP_CACHE_URL = 'https://jj-trader-api/_ff_calendar_thisweek.json';
 
 async function fetchForexNews(DB) {
@@ -19,14 +20,17 @@ async function fetchForexNews(DB) {
     return { data: newsCache.data, isMock: false };
   }
 
-  const NEWS_DB_TTL = 10 * 60 * 1000;
+  let staleData = null;
   const dbRow = await DB.prepare('SELECT payload, fetched_at FROM news_cache WHERE id = ?').bind('default').first();
-  if (dbRow && Date.now() - dbRow.fetched_at < NEWS_DB_TTL) {
+  if (dbRow && dbRow.payload) {
     try {
       const parsed = JSON.parse(dbRow.payload);
       if (Array.isArray(parsed) && parsed.length) {
-        newsCache = { data: parsed, ts: Date.now() };
-        return { data: parsed, isMock: false };
+        if (Date.now() - dbRow.fetched_at < NEWS_DB_TTL) {
+          newsCache = { data: parsed, ts: Date.now() };
+          return { data: parsed, isMock: false };
+        }
+        staleData = parsed;
       }
     } catch (e) {}
   }
@@ -64,19 +68,32 @@ async function fetchForexNews(DB) {
       try { await cache.put(cacheKey, cachedRes); } catch (e) {}
       return { data: parsed, isMock: false };
     }
-    if (ffRes.status === 429 && newsCache.data) {
-      return { data: newsCache.data, isMock: false };
-    }
-    if (ffRes.status === 429 && !newsCache.data) {
+    if (ffRes.status === 429) {
+      if (newsCache.data) return { data: newsCache.data, isMock: false };
+      if (staleData) {
+        newsCache = { data: staleData, ts: Date.now() };
+        return { data: staleData, isMock: false };
+      }
       return { data: null, isMock: false };
     }
     if (!isArr || !parsed.length) {
+      if (newsCache.data) return { data: newsCache.data, isMock: false };
+      if (staleData) {
+        newsCache = { data: staleData, ts: Date.now() };
+        return { data: staleData, isMock: false };
+      }
       return { data: null, isMock: false };
     }
   } catch (e) {
-    if (newsCache.data) {
-      return { data: newsCache.data, isMock: false };
+    if (newsCache.data) return { data: newsCache.data, isMock: false };
+    if (staleData) {
+      newsCache = { data: staleData, ts: Date.now() };
+      return { data: staleData, isMock: false };
     }
+  }
+  if (staleData) {
+    newsCache = { data: staleData, ts: Date.now() };
+    return { data: staleData, isMock: false };
   }
   return { data: null, isMock: false };
 }
