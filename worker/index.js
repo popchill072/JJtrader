@@ -10,6 +10,77 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:5500',
 ];
 
+let newsCache = { data: null, ts: 0 };
+const NEWS_CACHE_TTL = 60 * 1000;
+const NEWS_HTTP_CACHE_URL = 'https://jj-trader-api/_ff_calendar_thisweek.json';
+
+async function fetchForexNews(DB) {
+  if (newsCache.data && Date.now() - newsCache.ts < NEWS_CACHE_TTL) {
+    return { data: newsCache.data, isMock: false };
+  }
+
+  const NEWS_DB_TTL = 10 * 60 * 1000;
+  const dbRow = await DB.prepare('SELECT payload, fetched_at FROM news_cache WHERE id = ?').bind('default').first();
+  if (dbRow && Date.now() - dbRow.fetched_at < NEWS_DB_TTL) {
+    try {
+      const parsed = JSON.parse(dbRow.payload);
+      if (Array.isArray(parsed) && parsed.length) {
+        newsCache = { data: parsed, ts: Date.now() };
+        return { data: parsed, isMock: false };
+      }
+    } catch (e) {}
+  }
+
+  const cache = caches.default;
+  const cacheKey = new Request(NEWS_HTTP_CACHE_URL, { method: 'GET' });
+  try {
+    const cached = await cache.match(cacheKey);
+    if (cached && cached.ok) {
+      const parsed = await cached.json();
+      if (Array.isArray(parsed) && parsed.length) {
+        newsCache = { data: parsed, ts: Date.now() };
+        return { data: parsed, isMock: false };
+      }
+    }
+  } catch (e) {}
+
+  try {
+    const ffRes = await fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+    });
+    const rawText = await ffRes.text();
+    let parsed = null;
+    try { parsed = JSON.parse(rawText); } catch (e) {}
+    const isArr = Array.isArray(parsed);
+    if (ffRes.ok && isArr && parsed.length) {
+      newsCache = { data: parsed, ts: Date.now() };
+      try {
+        await DB.prepare('INSERT INTO news_cache (id, payload, fetched_at) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, fetched_at = excluded.fetched_at')
+          .bind('default', rawText, Date.now()).run();
+      } catch (e) {}
+      const cachedRes = new Response(JSON.stringify(parsed), {
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=600' },
+      });
+      try { await cache.put(cacheKey, cachedRes); } catch (e) {}
+      return { data: parsed, isMock: false };
+    }
+    if (ffRes.status === 429 && newsCache.data) {
+      return { data: newsCache.data, isMock: false };
+    }
+    if (ffRes.status === 429 && !newsCache.data) {
+      return { data: null, isMock: false };
+    }
+    if (!isArr || !parsed.length) {
+      return { data: null, isMock: false };
+    }
+  } catch (e) {
+    if (newsCache.data) {
+      return { data: newsCache.data, isMock: false };
+    }
+  }
+  return { data: null, isMock: false };
+}
+
 function resolveCorsOrigin(request) {
   const origin = request.headers.get('Origin') || '';
   if (!origin) return 'https://jj-trader.pages.dev';
@@ -168,25 +239,29 @@ export default {
       // ── FOREXFACTORY NEWS API ─────────────────────────
       if (path === '/api/news' && method === 'GET') {
         const period = url.searchParams.get('period') || 'thisweek';
-        
-        let targetUrl = 'https://nfp.forexfactory.com/fetch.php';
-        if (period === 'yesterday') {
-          targetUrl = 'https://nfp.forexfactory.com/fetch.php?period=yesterday';
-        } else if (period === 'today') {
-          targetUrl = 'https://nfp.forexfactory.com/fetch.php?period=today';
-        } else if (period === 'nextweek') {
-          targetUrl = 'https://nfp.forexfactory.com/fetch.php?period=nextweek';
-        }
 
-        try {
-          const ffRes = await fetch(targetUrl, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
-          });
-          if (ffRes.ok) {
-            const data = await ffRes.json();
-            return respond(data);
+        const isSameDate = (iso, targetDate) => {
+          try {
+            const d = new Date(iso);
+            const y = d.getUTCFullYear();
+            const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(d.getUTCDate()).padStart(2, '0');
+            return `${y}-${m}-${day}` === targetDate;
+          } catch (e) { return false; }
+        };
+
+        const { data: all } = await fetchForexNews(DB);
+        if (Array.isArray(all) && all.length && period !== 'nextweek') {
+          let data = all;
+          if (period === 'today' || period === 'yesterday') {
+            const now = new Date();
+            const target = new Date(now);
+            target.setUTCDate(target.getUTCDate() + (period === 'yesterday' ? -1 : 0));
+            const targetDate = `${target.getUTCFullYear()}-${String(target.getUTCMonth() + 1).padStart(2, '0')}-${String(target.getUTCDate()).padStart(2, '0')}`;
+            data = all.filter(item => item.date && isSameDate(item.date, targetDate));
           }
-        } catch (e) {}
+          return respond(data);
+        }
 
         // Dynamic fallback mock data with timestamps based on requested period
         const now = new Date();

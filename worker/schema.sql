@@ -68,3 +68,10 @@ CREATE TABLE IF NOT EXISTS preferences (
   updated_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- News cache (persists ForexFactory calendar across deployments)
+CREATE TABLE IF NOT EXISTS news_cache (
+  id TEXT PRIMARY KEY DEFAULT 'default',
+  payload TEXT NOT NULL,
+  fetched_at INTEGER NOT NULL
+);

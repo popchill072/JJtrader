@@ -87,6 +87,7 @@ function clearAllIntervals() {
   intervalIds.forEach(id => clearInterval(id));
   intervalIds = [];
   if (newsCountdownInterval) { clearInterval(newsCountdownInterval); newsCountdownInterval = null; }
+  if (newsRefreshInterval) { clearInterval(newsRefreshInterval); newsRefreshInterval = null; }
 }
 
 // ── AUTH & STARTUP SYSTEM ───────────────────────────────
@@ -650,6 +651,7 @@ async function deleteNote(id) {
 
 // ── FOREXFACTORY NEWS CALENDAR & COUNTDOWN ──────────────────
 let newsCountdownInterval = null;
+let newsRefreshInterval = null;
 let currentNewsData = [];
 let currentNewsPeriod = 'thisweek';
 let currentNewsImpactFilter = 'all';
@@ -686,6 +688,11 @@ async function loadForexNews(forceRefresh = false) {
   }
   newsCountdownInterval = setInterval(updateNewsCountdowns, 1000);
   intervalIds.push(newsCountdownInterval);
+
+  if (!newsRefreshInterval) {
+    newsRefreshInterval = setInterval(() => loadForexNews(true), 5 * 60 * 1000);
+    intervalIds.push(newsRefreshInterval);
+  }
 }
 
 function changeNewsPeriod(period, btnElement) {
@@ -748,8 +755,9 @@ function renderNewsListWithCountdown() {
     }
 
     const dateObj = item.date ? new Date(item.date) : null;
-    const timeStr = dateObj ? dateObj.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false }) : (item.time || 'ไม่ระบุเวลา');
-    const dateStr = dateObj ? dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) : '';
+    const thOpts = { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' };
+    const timeStr = dateObj ? dateObj.toLocaleTimeString('th-TH', thOpts) : (item.time || 'ไม่ระบุเวลา');
+    const dateStr = dateObj ? dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' }) : '';
 
     el.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;">
