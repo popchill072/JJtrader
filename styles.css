@@ -185,6 +185,25 @@ body {
 
 .login-error.show { display: block; }
 
+.btn-guest {
+  background: transparent;
+  border: 1px solid var(--border-gold);
+  color: var(--gold-light);
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  width: 100%;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: var(--transition);
+}
+
+.btn-guest:hover {
+  background: rgba(255,215,0,0.08);
+  box-shadow: 0 0 18px rgba(255,215,0,0.15);
+}
+
 .login-hint {
   font-size: 11px; color: var(--text-muted);
   line-height: 1.7;
@@ -301,6 +320,12 @@ body {
   background: rgba(255,215,0,0.1);
 }
 
+.tf-preset-btn.active {
+  background: rgba(255,215,0,0.15);
+  border-color: var(--border-gold-active);
+  color: var(--gold-light);
+}
+
 .tf-label {
   font-size: 11px;
   color: var(--text-muted);
@@ -335,6 +360,8 @@ body {
 @media (max-width: 900px) {
   .chart-section { height: auto; min-height: 0; }
   .chart-grid { grid-template-columns: 1fr; grid-template-rows: none; }
+  .chart-card { height: 360px; min-height: 360px; }
+  .chart-container-sm { min-height: 300px; }
 }
 
 .chart-card {
@@ -883,3 +910,17 @@ select.calc-input {
 }
 
 .text-gold { color: var(--gold-light); }
+
+/* ── MOBILE RESPONSIVE ── */
+@media (max-width: 600px) {
+  .calc-grid-2col { grid-template-columns: 1fr; }
+  .tools-row { grid-template-columns: 1fr; }
+  .risk-result-card { flex-wrap: wrap; }
+  .trade-log-summary { flex-wrap: wrap; }
+  .pivot-table { display: block; overflow-x: auto; white-space: nowrap; }
+  .login-card { padding: 28px 20px; }
+  .main-layout { padding: 10px 12px; }
+  .brand-title { font-size: 16px; }
+  .user-badge { padding: 4px 10px; font-size: 11px; }
+  .toast { right: 12px; left: 12px; text-align: center; }
+}

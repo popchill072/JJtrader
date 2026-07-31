@@ -31,18 +31,6 @@ function corsHeaders(request) {
   };
 }
 
-function json(data, status = 200, request = null) {
-  const ch = request ? corsHeaders(request) : { 'Access-Control-Allow-Origin': 'https://jj-trader.pages.dev', 'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' };
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...ch, 'Content-Type': 'application/json' },
-  });
-}
-
-function err(msg, status = 400) {
-  return respond({ error: msg }, status);
-}
-
 // Crypto helpers
 function generateSalt() {
   const bytes = new Uint8Array(16);
@@ -50,10 +38,40 @@ function generateSalt() {
   return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+const PBKDF2_ITERATIONS = 100000;
+
 async function hashPin(pin, salt) {
-  const encoded = new TextEncoder().encode(pin + salt);
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(pin), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: enc.encode(salt), iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    keyMaterial,
+    256
+  );
+  const hex = Array.from(new Uint8Array(bits)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return `pbkdf2$${PBKDF2_ITERATIONS}$${hex}`;
+}
+
+async function verifyPin(pin, storedHash, salt) {
+  const userSalt = salt || '_jj_trader_salt';
+  if (storedHash && storedHash.startsWith('pbkdf2$')) {
+    const parts = storedHash.split('$');
+    const iterations = parseInt(parts[1], 10) || PBKDF2_ITERATIONS;
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(pin), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits(
+      { name: 'PBKDF2', salt: enc.encode(userSalt), iterations, hash: 'SHA-256' },
+      keyMaterial,
+      256
+    );
+    const hex = Array.from(new Uint8Array(bits)).map(b => b.toString(16).padStart(2, '0')).join('');
+    return `pbkdf2$${iterations}$${hex}` === storedHash;
+  }
+  // Legacy SHA-256 fallback for accounts created before PBKDF2 upgrade
+  const encoded = new TextEncoder().encode(pin + userSalt);
   const hash = await crypto.subtle.digest('SHA-256', encoded);
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const legacyHex = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return legacyHex === storedHash;
 }
 
 function genId() {
@@ -112,10 +130,11 @@ export default {
       });
     }
 
+    const cors = corsHeaders(request);
+    const respond = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
+    const fail = (msg, status = 400) => respond({ error: msg }, status);
+
     try {
-      const cors = corsHeaders(request);
-      const respond = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
-      const fail = (msg, status = 400) => respond({ error: msg }, status);
 
       // Root URL -> Render friendly status page with direct link to Web App
       if (path === '/' || path === '' || path === '/index.html') {
@@ -179,8 +198,7 @@ export default {
         };
 
         const dayOffset = period === 'yesterday' ? -1 : (period === 'nextweek' ? 7 : (period === 'today' ? 0 : 0));
-
-        return respond([
+        const mockData = [
           { title: "CPI m/m (ดัชนีราคาผู้บริโภค)", country: "USD", date: buildDate(dayOffset, 19, 30), impact: "High", forecast: "0.3%", previous: "0.2%" },
           { title: "Core CPI m/m", country: "USD", date: buildDate(dayOffset, 19, 30), impact: "High", forecast: "0.2%", previous: "0.2%" },
           { title: "Unemployment Claims (สวัสดิการว่างงาน)", country: "USD", date: buildDate(dayOffset, 19, 30), impact: "Medium", forecast: "225K", previous: "222K" },
@@ -188,7 +206,11 @@ export default {
           { title: "Retail Sales m/m (ยอดค้าปลีก)", country: "GBP", date: buildDate(dayOffset, 13, 0), impact: "Medium", forecast: "0.5%", previous: "-0.7%" },
           { title: "FOMC Member Speaks", country: "USD", date: buildDate(dayOffset, 21, 0), impact: "High", forecast: "-", previous: "-" },
           { title: "Crude Oil Inventories (สต็อกน้ำมัน)", country: "USD", date: buildDate(dayOffset, 21, 30), impact: "Medium", forecast: "-1.5M", previous: "+0.8M" }
-        ]);
+        ];
+        return new Response(JSON.stringify(mockData), {
+          status: 200,
+          headers: { ...cors, 'Content-Type': 'application/json', 'X-Mock-Data': 'true' }
+        });
       }
 
       // ── AUTH (Rate Limited) ──────────────────────────
@@ -251,16 +273,13 @@ export default {
         // Check if user exists (need salt)
         let user = await DB.prepare('SELECT id, pin_hash, salt FROM users WHERE username = ?').bind(username.trim()).first();
         if (!user) {
-          return fail('❌ ไม่พบบัญชีผู้ใช้นี้ในระบบ กรุณากดปุ่มสมัครสมาชิกใหม่ครับ', 401);
+          return fail('❌ ชื่อผู้ใช้หรือ PIN ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง', 401);
         }
 
         // Use per-user salt if available; fallback for legacy accounts
-        const userSalt = user.salt || '_jj_trader_salt';
-        const pinHash = await hashPin(String(pin).trim(), userSalt);
-
-        // Verify PIN
-        if (user.pin_hash !== pinHash) {
-          return fail('❌ PIN ไม่ถูกต้องครับ กรุณาลองใหม่อีกครั้ง', 401);
+        const valid = await verifyPin(String(pin).trim(), user.pin_hash, user.salt);
+        if (!valid) {
+          return fail('❌ ชื่อผู้ใช้หรือ PIN ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง', 401);
         }
 
         // Create session (30 days)
@@ -327,16 +346,18 @@ export default {
     // ── ALERTS ────────────────────────────────────────
     // GET /api/alerts
     if (path === '/api/alerts' && method === 'GET') {
-      const { results } = await DB.prepare('SELECT * FROM alerts WHERE user_id = ? AND active = 1 ORDER BY price ASC').bind(user.id).all();
+      const { results } = await DB.prepare('SELECT * FROM alerts WHERE user_id = ? AND active = 1 ORDER BY created_at ASC').bind(user.id).all();
       return respond(results);
     }
 
-    // POST /api/alerts  { price }
+    // POST /api/alerts  { symbol, target_price, condition }
     if (path === '/api/alerts' && method === 'POST') {
-      const { price } = await request.json();
-      if (!price) return fail('ราคาว่างครับ');
+      const { symbol, target_price, condition } = await request.json();
+      const price = parseFloat(target_price);
+      if (!price || isNaN(price)) return fail('ราคาเป้าหมายว่างครับ');
       const id = genId();
-      await DB.prepare('INSERT INTO alerts (id, user_id, price) VALUES (?, ?, ?)').bind(id, user.id, price).run();
+      await DB.prepare('INSERT INTO alerts (id, user_id, symbol, target_price, condition, price) VALUES (?, ?, ?, ?, ?, ?)')
+        .bind(id, user.id, symbol || 'XAUUSD', price, condition || 'above', price).run();
       return respond({ ok: true, id });
     }
 
@@ -354,15 +375,15 @@ export default {
       return respond(results);
     }
 
-    // POST /api/history  { symbol, direction, entry, sl, tp, lot, result, pnl, note }
+    // POST /api/history  { symbol, direction, entry, close, sl, tp, lot, result, pnl, note }
     if (path === '/api/history' && method === 'POST') {
       const body = await request.json();
       const id = genId();
       const date = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'short', timeStyle: 'short' });
       await DB.prepare(`
-        INSERT INTO trade_history (id, user_id, symbol, direction, entry, sl, tp, lot, result, pnl, note, date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(id, user.id, body.symbol || 'XAUUSD', body.direction || 'BUY', body.entry, body.sl, body.tp, body.lot, body.result, body.pnl || 0, body.note || '', date).run();
+        INSERT INTO trade_history (id, user_id, symbol, direction, entry, close, sl, tp, lot, result, pnl, note, date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(id, user.id, body.symbol || 'XAUUSD', body.direction || 'BUY', body.entry, body.close, body.sl, body.tp, body.lot, body.result, body.pnl || 0, body.note || '', date).run();
       return respond({ ok: true, id });
     }
 

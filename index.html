@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logo.jpg">
-  <link rel="stylesheet" href="styles.css?v=19.0">
+  <link rel="stylesheet" href="styles.css?v=21.0">
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body>
@@ -34,6 +34,7 @@
         <input type="password" id="login-pin" class="login-input" placeholder="PIN 4-6 หลัก (Password)" maxlength="12" inputmode="numeric" autocomplete="current-password" required>
         <div class="login-error" id="login-error-msg"></div>
         <button type="submit" class="btn-primary" id="login-btn">🔐 เข้าสู่ระบบ</button>
+        <button type="button" class="btn-guest" onclick="skipLoginGuest()">👤 ทดลองใช้งาน (Guest Mode)</button>
         <div class="login-hint">
           🔒 เฉพาะสมาชิกที่มีบัญชีอยู่แล้ว<br>
           💡 ยังไม่มีบัญชี? กด <b>"สมัครสมาชิก"</b> ด้านบน
@@ -104,7 +105,10 @@
       <button class="btn-asset" onclick="changeSymbol('BINANCE:BTCUSDT', 'บิตคอยน์ (Bitcoin)', this)"><span>₿</span>BTC/USD</button>
     </div>
     <div class="timeframe-selector">
-      <span class="tf-label">📈 4 กราฟ: 3นาที · 30นาที · 1ชม. · 4ชม.</span>
+      <span class="tf-label">📈 4 กราฟ:</span>
+      <button class="btn-indicator tf-preset-btn active" onclick="applyChartPreset('intraday', this)" title="3นาที · 30นาที · 1ชม. · 4ชม.">Intraday</button>
+      <button class="btn-indicator tf-preset-btn" onclick="applyChartPreset('scalping', this)" title="1นาที · 5นาที · 15นาที · 1ชม.">Scalping</button>
+      <button class="btn-indicator tf-preset-btn" onclick="applyChartPreset('swing', this)" title="1ชม. · 4ชม. · 1วัน · 1สัปดาห์">Swing</button>
       <button class="btn-indicator" onclick="promptCustomIndicator()" title="ตั้งค่าอินดิเคเตอร์">⚙️ Custom Indicator</button>
     </div>
   </div>
@@ -214,35 +218,35 @@
         <div class="v11-grid">
           <div class="v11-stat">
             <div class="v11-stat-label">สถานะ (Status)</div>
-            <div class="v11-stat-value" id="v11-status-badge" style="color:var(--accent-cyan)">SCANNING</div>
+            <div class="v11-stat-value" id="v11-status-badge" style="color:var(--text-muted)">⏳ กำลังรอข้อมูล...</div>
           </div>
           <div class="v11-stat">
             <div class="v11-stat-label">เทรนด์ (Trend)</div>
-            <div class="v11-stat-value" id="v11-trend-badge" style="color:var(--accent-green)">BULLISH</div>
+            <div class="v11-stat-value" id="v11-trend-badge" style="color:var(--text-muted)">⏳ กำลังรอข้อมูล...</div>
           </div>
         </div>
 
         <div class="v11-details" style="margin-top:8px">
           <div class="v11-row">
             <span class="v11-label">🟢 ENTRY ZONE (Fib 78.6%)</span>
-            <span class="v11-value" style="color:var(--accent-cyan)" id="v11-val-entry">$0.00</span>
+            <span class="v11-value" style="color:var(--accent-cyan)" id="v11-val-entry">--</span>
           </div>
           <div class="v11-row">
             <span class="v11-label">🎯 TP1 (Fib 38.2%)</span>
-            <span class="v11-value" style="color:var(--gold-light)" id="v11-val-tp1">$0.00</span>
+            <span class="v11-value" style="color:var(--gold-light)" id="v11-val-tp1">--</span>
           </div>
           <div class="v11-row">
             <span class="v11-label">🏆 TP3 (Swing High/Low)</span>
-            <span class="v11-value" style="color:var(--accent-green)" id="v11-val-tp3">$0.00</span>
+            <span class="v11-value" style="color:var(--accent-green)" id="v11-val-tp3">--</span>
           </div>
           <div class="v11-row">
             <span class="v11-label">🛑 STOP LOSS (SL)</span>
-            <span class="v11-value" style="color:var(--accent-red)" id="v11-val-sl">$0.00</span>
+            <span class="v11-value" style="color:var(--accent-red)" id="v11-val-sl">--</span>
           </div>
           <hr class="v11-divider">
           <div class="v11-row">
             <span class="v11-label">⚖️ Risk : Reward (TP1 / TP3)</span>
-            <span class="v11-value" style="color:var(--gold-primary)" id="v11-val-rr">1 : 2.5</span>
+            <span class="v11-value" style="color:var(--gold-primary)" id="v11-val-rr">--</span>
           </div>
         </div>
       </div>
@@ -292,11 +296,11 @@
           <div class="calc-grid-2col">
             <div class="calc-input-group">
               <label for="acc-balance">เงินพอร์ต ($)</label>
-              <input type="number" id="acc-balance" class="calc-input" value="1000" oninput="calculateRiskLot()">
+              <input type="number" id="acc-balance" class="calc-input" value="1000" oninput="calculateRiskLot()" onchange="savePreferences()">
             </div>
             <div class="calc-input-group">
               <label for="risk-percent">ความเสี่ยง (%)</label>
-              <input type="number" id="risk-percent" class="calc-input" value="1" step="0.5" oninput="calculateRiskLot()">
+              <input type="number" id="risk-percent" class="calc-input" value="1" step="0.5" oninput="calculateRiskLot()" onchange="savePreferences()">
             </div>
           </div>
           <div class="calc-grid-2col" style="margin-top:6px">
@@ -501,7 +505,7 @@
     <div>สถานะ: <span style="color:var(--accent-green)">● ปกติ</span></div>
   </footer>
 
-  <script src="app.js?v=20.0"></script>
-  <script src="v11engine.js?v=20.0"></script>
+  <script src="app.js?v=21.0"></script>
+  <script src="v11engine.js?v=21.0"></script>
 </body>
 </html>

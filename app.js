@@ -17,7 +17,10 @@ let intervalIds = [];
 
 // ── API HELPER ─────────────────────────────────────────
 async function api(method, path, body = null) {
-  if (path !== '/api/auth/login' && (sessionToken === 'guest_mode' || !sessionToken)) {
+  if (path !== '/api/auth/login' && sessionToken === 'guest_mode') {
+    return { error: 'Guest Mode', isGuest: true };
+  }
+  if (path !== '/api/auth/login' && !sessionToken) {
     return { error: 'Guest Mode', isGuest: true };
   }
 
@@ -30,9 +33,15 @@ async function api(method, path, body = null) {
   };
   if (body) opts.body = JSON.stringify(body);
   
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  opts.signal = controller.signal;
+
   try {
     const res = await fetch(API_BASE + path, opts);
+    clearTimeout(timeoutId);
     if (res.status === 401 && path !== '/api/auth/login') {
+      clearAllIntervals();
       sessionToken = null;
       currentUsername = null;
       localStorage.removeItem('jj_session_token');
@@ -42,6 +51,7 @@ async function api(method, path, body = null) {
     }
     return await res.json();
   } catch (err) {
+    clearTimeout(timeoutId);
     console.error('API Error:', err);
     return { error: 'Network error' };
   }
@@ -54,6 +64,29 @@ function showToast(msg) {
   t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 3000);
+}
+
+function sendPushNotification(title, body) {
+  try {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const n = new Notification(title, { body, icon: 'logo.jpg', tag: 'jj-trader-alert' });
+      setTimeout(() => n.close(), 8000);
+    }
+  } catch (e) {}
+}
+
+function requestNotificationPermission() {
+  try {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  } catch (e) {}
+}
+
+function clearAllIntervals() {
+  intervalIds.forEach(id => clearInterval(id));
+  intervalIds = [];
+  if (newsCountdownInterval) { clearInterval(newsCountdownInterval); newsCountdownInterval = null; }
 }
 
 // ── AUTH & STARTUP SYSTEM ───────────────────────────────
@@ -205,9 +238,7 @@ function skipLoginGuest() {
 
 function handleLogout() {
   if (!confirm('ต้องการออกจากระบบใช่ไหมครับ?')) return;
-  intervalIds.forEach(id => clearInterval(id));
-  intervalIds = [];
-  if (newsCountdownInterval) { clearInterval(newsCountdownInterval); newsCountdownInterval = null; }
+  clearAllIntervals();
   sessionToken = null;
   currentUsername = null;
   localStorage.removeItem('jj_session_token');
@@ -239,6 +270,8 @@ function initApp() {
   try { loadNotes(); } catch (e) { console.error(e); }
   try { loadPriceAlerts(); } catch (e) { console.error(e); }
   try { startLivePriceTicker(); } catch (e) { console.error(e); }
+  try { loadForexNews(); } catch (e) { console.error(e); }
+  try { requestNotificationPermission(); } catch (e) {}
 
   try {
     updateTradingSessionsClock();
@@ -258,6 +291,8 @@ let customIndicatorId = localStorage.getItem('jj_custom_indicator_id') || '';
 function renderMainChart() {
   widgetInstances.forEach(w => { try { w.remove(); } catch(e) {} });
   widgetInstances = [];
+
+  const tvUserId = String(currentUsername || 'default_trader').replace(/[^a-zA-Z0-9-_. ]/g, '').slice(0, 32) || 'default_trader';
 
   CHART_TFS.forEach((cfg, idx) => {
     const container = document.getElementById(cfg.id);
@@ -281,7 +316,7 @@ function renderMainChart() {
       save_image: true,
       auto_save_change: false,
       client_id: "jjtrader_platform",
-      user_id: currentUsername || "default_trader",
+      user_id: tvUserId,
       container_id: cfg.id,
       studies
     });
@@ -325,29 +360,87 @@ function changeSymbol(symbol, title, btnElement) {
   document.querySelectorAll('.btn-asset').forEach(btn => btn.classList.remove('active'));
   if (btnElement) btnElement.classList.add('active');
 
-  const shortTitle = title.replace(/<[^>]*>/g, '').split('(')[0].trim();
-  CHART_TFS.forEach((cfg, idx) => {
-    const labelEl = document.getElementById(`chart-label-${idx}`);
-    if (labelEl) labelEl.textContent = `${shortTitle} - ${cfg.label}`;
-  });
+  applySymbolToCharts();
 
   savePreferences();
   renderMainChart();
   renderTechnicalGauge();
 }
 
-function changeTimeframe(tf, btnElement) {
-  // Multi-chart mode: no single timeframe to change
+const CHART_PRESETS = {
+  intraday: {
+    label: '3นาที · 30นาที · 1ชม. · 4ชม.',
+    intervals: ['3', '30', '60', '240'],
+    tfLabels: ['3 นาที', '30 นาที', '1 ชั่วโมง', '4 ชั่วโมง'],
+  },
+  scalping: {
+    label: '1นาที · 5นาที · 15นาที · 1ชม.',
+    intervals: ['1', '5', '15', '60'],
+    tfLabels: ['1 นาที', '5 นาที', '15 นาที', '1 ชั่วโมง'],
+  },
+  swing: {
+    label: '1ชม. · 4ชม. · 1วัน · 1สัปดาห์',
+    intervals: ['60', '240', '1D', '1W'],
+    tfLabels: ['1 ชั่วโมง', '4 ชั่วโมง', '1 วัน', '1 สัปดาห์'],
+  },
+};
+
+function applyChartPreset(name, btnElement) {
+  const preset = CHART_PRESETS[name];
+  if (!preset) return;
+  document.querySelectorAll('.tf-preset-btn').forEach(btn => btn.classList.remove('active'));
+  if (btnElement) btnElement.classList.add('active');
+
+  CHART_TFS.forEach((cfg, idx) => {
+    cfg.interval = preset.intervals[idx];
+    cfg.label = preset.tfLabels[idx];
+  });
+
+  const meta = SYMBOL_META[currentSymbol];
+  const shortTitle = meta ? meta.short : (currentSymbol.split(':').pop() || currentSymbol);
+  CHART_TFS.forEach((cfg, idx) => {
+    const labelEl = document.getElementById(`chart-label-${idx}`);
+    if (labelEl) labelEl.textContent = `${shortTitle} - ${cfg.label}`;
+  });
+
   renderMainChart();
+  showToast(`✅ เปลี่ยนชุด Timeframe เป็น: ${preset.label}`);
 }
 
 // ── PREFERENCES (Cloud) ────────────────────────────────
+const SYMBOL_META = {
+  'OANDA:XAUUSD': { label: '👑 XAU/USD (Gold)', short: 'XAU/USD (Gold)' },
+  'OANDA:XAGUSD': { label: '🥈 XAG/USD (Silver)', short: 'XAG/USD (Silver)' },
+  'CAPITALCOM:DXY': { label: '💵 DXY', short: 'DXY' },
+  'TVC:USOIL': { label: '🛢️ US Oil', short: 'US Oil' },
+  'BINANCE:BTCUSDT': { label: '₿ BTC/USD', short: 'BTC/USD' },
+};
+
+function applySymbolToCharts() {
+  const meta = SYMBOL_META[currentSymbol];
+  const shortTitle = meta ? meta.short : (currentSymbol.split(':').pop() || currentSymbol);
+  CHART_TFS.forEach((cfg, idx) => {
+    const labelEl = document.getElementById(`chart-label-${idx}`);
+    if (labelEl) labelEl.textContent = `${shortTitle} - ${cfg.label}`;
+  });
+  document.querySelectorAll('.btn-asset').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.btn-asset').forEach(btn => {
+    const onclick = btn.getAttribute('onclick') || '';
+    if (onclick.includes(currentSymbol)) btn.classList.add('active');
+  });
+}
+
 async function loadPreferences() {
   try {
     const data = await api('GET', '/api/preferences');
     if (data.balance && document.getElementById('acc-balance')) document.getElementById('acc-balance').value = data.balance;
     if (data.risk_pct && document.getElementById('risk-percent')) document.getElementById('risk-percent').value = data.risk_pct;
-    if (data.symbol) currentSymbol = data.symbol;
+    if (data.symbol) {
+      currentSymbol = data.symbol;
+      applySymbolToCharts();
+      renderMainChart();
+      renderTechnicalGauge();
+    }
     calculateRiskLot();
     calculatePivot();
   } catch (e) { /* offline fallback */ }
@@ -487,45 +580,71 @@ function toggleChipActive(id, isActive) {
   document.getElementById(id)?.classList.toggle('active', isActive);
 }
 
-// ── NOTES (Cloud) ──────────────────────────────────────
+// ── NOTES (Cloud + Guest local fallback) ─────────────
+function getLocalNotes() {
+  try { return JSON.parse(localStorage.getItem('jj_local_notes') || '[]'); } catch (e) { return []; }
+}
+function saveLocalNotes(notes) { localStorage.setItem('jj_local_notes', JSON.stringify(notes)); }
+
 async function loadNotes() {
   const notesContainer = document.getElementById('notes-list');
   if (!notesContainer) return;
-  try {
-    const notes = await api('GET', '/api/notes');
-    notesContainer.innerHTML = '';
-    if (!Array.isArray(notes) || !notes.length) {
-      notesContainer.innerHTML = '<div style="color:var(--text-muted);font-size:11px;text-align:center;padding:10px;">ยังไม่มีแผนบันทึก...</div>';
-      return;
-    }
-    notes.forEach(note => {
-      const item = document.createElement('div');
-      item.className = 'note-item';
-      item.innerHTML = `
+
+  let notes = [];
+  if (sessionToken && sessionToken !== 'guest_mode') {
+    try {
+      const data = await api('GET', '/api/notes');
+      if (Array.isArray(data)) notes = data;
+    } catch (e) {}
+  } else {
+    notes = getLocalNotes();
+  }
+
+  notesContainer.innerHTML = '';
+  if (!notes.length) {
+    notesContainer.innerHTML = '<div style="color:var(--text-muted);font-size:11px;text-align:center;padding:10px;">ยังไม่มีแผนบันทึก...</div>';
+    return;
+  }
+  notes.forEach(note => {
+    const item = document.createElement('div');
+    item.className = 'note-item';
+    item.innerHTML = `
         <div style="flex:1"><div>${escapeHtml(note.text)}</div><div class="note-date">${note.date}</div></div>
         <button class="btn-icon" onclick="deleteNote('${note.id}')">✕</button>
       `;
-      notesContainer.appendChild(item);
-    });
-  } catch (e) {
-    notesContainer.innerHTML = '<div style="color:var(--accent-red);font-size:11px;text-align:center;padding:8px;">⚠️ ไม่สามารถโหลดข้อมูลได้</div>';
-  }
+    notesContainer.appendChild(item);
+  });
 }
 
 async function addNote() {
   const input = document.getElementById('journal-text');
   const text = input ? input.value.trim() : '';
   if (!text) return;
-  const res = await api('POST', '/api/notes', { text });
-  if (res.ok) {
+
+  if (sessionToken && sessionToken !== 'guest_mode') {
+    const res = await api('POST', '/api/notes', { text });
+    if (res.ok) {
+      if (input) input.value = '';
+      showToast('✅ บันทึกแผนเทรดแล้วครับ');
+      loadNotes();
+    }
+  } else {
+    const notes = getLocalNotes();
+    notes.unshift({ id: Date.now().toString(), text, date: new Date().toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) });
+    saveLocalNotes(notes);
     if (input) input.value = '';
-    showToast('✅ บันทึกแผนเทรดแล้วครับ');
+    showToast('✅ บันทึกแผนเทรดแล้วครับ (บันทึกในเครื่อง)');
     loadNotes();
   }
 }
 
 async function deleteNote(id) {
-  await api('DELETE', `/api/notes/${id}`);
+  if (sessionToken && sessionToken !== 'guest_mode') {
+    await api('DELETE', `/api/notes/${id}`);
+  } else {
+    const notes = getLocalNotes().filter(n => n.id !== id);
+    saveLocalNotes(notes);
+  }
   loadNotes();
 }
 
@@ -534,6 +653,7 @@ let newsCountdownInterval = null;
 let currentNewsData = [];
 let currentNewsPeriod = 'thisweek';
 let currentNewsImpactFilter = 'all';
+let currentNewsIsMock = false;
 
 async function loadForexNews(forceRefresh = false) {
   const container = document.getElementById('news-list-container');
@@ -542,9 +662,10 @@ async function loadForexNews(forceRefresh = false) {
   if (forceRefresh || !currentNewsData.length) {
     container.innerHTML = '<div style="color:var(--text-muted);font-size:11px;text-align:center;padding:15px;">⏳ กำลังอัปเดตข้อมูลข่าวจาก ForexFactory...</div>';
     try {
-      const res = await fetch(`https://jj-trader-api.popchill072.workers.dev/api/news?period=${currentNewsPeriod}`);
+      const res = await fetch(`${API_BASE}/api/news?period=${currentNewsPeriod}`);
       if (res.ok) {
         currentNewsData = await res.json();
+        currentNewsIsMock = res.headers.get('X-Mock-Data') === 'true';
       }
     } catch (err) {
       container.innerHTML = '<div style="color:var(--accent-red);font-size:11px;text-align:center;padding:10px;">⚠️ ไม่สามารถโหลดข้อมูลข่าวสารได้</div>';
@@ -572,6 +693,7 @@ function changeNewsPeriod(period, btnElement) {
   document.querySelectorAll('.news-period-btn').forEach(btn => btn.classList.remove('active'));
   if (btnElement) btnElement.classList.add('active');
   currentNewsData = [];
+  currentNewsIsMock = false;
   loadForexNews(true);
 }
 
@@ -596,6 +718,13 @@ function renderNewsListWithCountdown() {
   const container = document.getElementById('news-list-container');
   if (!container) return;
   container.innerHTML = '';
+
+  if (currentNewsIsMock) {
+    const banner = document.createElement('div');
+    banner.style.cssText = 'background:rgba(255,160,0,0.12);border:1px solid #ffa000;color:#ffa000;font-size:10px;text-align:center;padding:6px 8px;border-radius:6px;margin-bottom:8px;';
+    banner.textContent = '⚠️ แหล่งข่าวหลักไม่ตอบสนอง กำลังแสดงข้อมูลตัวอย่าง (Mock) เพื่อให้เห็นรูปแบบการแจ้งเตือน';
+    container.appendChild(banner);
+  }
 
   const filtered = getFilteredNewsData();
 
@@ -631,11 +760,11 @@ function renderNewsListWithCountdown() {
         <div>${impactBadge}</div>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;color:var(--text-muted);font-size:10px;">
-        <span>📅 ${dateStr} | ⏰ <strong>${timeStr} น.</strong></span>
+        <span>📅 ${dateStr} | ⏰ <strong>${escapeHtml(timeStr)} น.</strong></span>
         <span id="news-cd-${index}" style="font-weight:700;color:var(--accent-cyan);">⏳ กำลังคำนวณ...</span>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;color:var(--text-muted);font-size:10px;border-top:1px solid rgba(255,255,255,0.05);padding-top:3px;">
-        <span>คาดการณ์: <strong style="color:#fff;">${item.forecast || '-'}</strong> | ครั้งก่อน: <strong>${item.previous || '-'}</strong></span>
+        <span>คาดการณ์: <strong style="color:#fff;">${escapeHtml(item.forecast || '-')}</strong> | ครั้งก่อน: <strong>${escapeHtml(item.previous || '-')}</strong></span>
       </div>
     `;
     container.appendChild(el);
@@ -720,10 +849,43 @@ async function fetchLiveAssetPrice() {
           }
         } catch (e) {}
       }
+    } else if (currentSymbol.includes('XAG') || currentSymbol.includes('SILVER')) {
+      try {
+        const res = await fetch('https://api.gold-api.com/price/XAG');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.price) livePrice = parseFloat(data.price);
+        }
+      } catch (e) {}
     } else if (currentSymbol.includes('BTC')) {
       const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
       const data = await res.json();
       if (data.price) livePrice = parseFloat(data.price);
+    } else if (currentSymbol.includes('USOIL') || currentSymbol.includes('OIL')) {
+      try {
+        const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=USOILUSDT');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.price) livePrice = parseFloat(data.price);
+        }
+      } catch (e) {}
+      if (!livePrice) {
+        try {
+          const res = await fetch('https://api.gold-api.com/price/USOIL');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.price) livePrice = parseFloat(data.price);
+          }
+        } catch (e) {}
+      }
+    } else if (currentSymbol.includes('DXY') || currentSymbol.includes('DOLLAR')) {
+      try {
+        const res = await fetch('https://api.gold-api.com/price/DXY');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.price) livePrice = parseFloat(data.price);
+        }
+      } catch (e) {}
     }
 
     if (livePrice && !isNaN(livePrice)) {
@@ -770,8 +932,9 @@ function renderPriceAlerts() {
     const item = document.createElement('div');
     item.className = 'alert-item';
     const condText = alert.condition === 'above' ? '≥ (สูงกว่า)' : '≤ (ต่ำกว่า)';
-      item.innerHTML = `
-        <div style="flex:1">🔔 ${alert.symbol || 'XAUUSD'} ${condText} <strong>$${parseFloat(alert.target_price).toFixed(2)}</strong></div>
+    const targetVal = parseFloat(alert.target_price || alert.price || 0);
+    item.innerHTML = `
+        <div style="flex:1">🔔 ${alert.symbol || 'XAUUSD'} ${condText} <strong>$${targetVal.toFixed(2)}</strong></div>
         <button class="btn-icon" onclick="deletePriceAlert('${alert.id}')">✕</button>
       `;
     container.appendChild(item);
@@ -790,14 +953,16 @@ async function addPriceAlert() {
   }
 
   const newAlert = { id: Date.now().toString(), symbol: currentSymbol, target_price, condition };
+
+  if (sessionToken && sessionToken !== 'guest_mode') {
+    const res = await api('POST', '/api/alerts', newAlert);
+    if (res && res.id) newAlert.id = res.id;
+  }
+
   priceAlerts.push(newAlert);
   renderPriceAlerts();
   if (targetEl) targetEl.value = '';
   showToast(`🔔 เพิ่มการตั้งเตือนราคา $${target_price.toFixed(2)} เรียบร้อยแล้ว`);
-
-  if (sessionToken && sessionToken !== 'guest_mode') {
-    await api('POST', '/api/alerts', newAlert);
-  }
 }
 
 async function deletePriceAlert(id) {
@@ -812,6 +977,7 @@ function checkPriceAlerts(currentPrice) {
   priceAlerts.forEach(alert => {
     if (triggeredAlertIds.has(alert.id)) return;
     const target = parseFloat(alert.target_price);
+    if (isNaN(target)) return;
     let triggered = false;
 
     if (alert.condition === 'above' && currentPrice >= target) triggered = true;
@@ -821,6 +987,7 @@ function checkPriceAlerts(currentPrice) {
       triggeredAlertIds.add(alert.id);
       playAlertAudio();
       showToast(`🚨 ALERT! ${alert.symbol || 'XAUUSD'} แตะเป้าหมาย $${target.toFixed(2)} แล้ว (ราคาปัจจุบัน $${currentPrice.toFixed(2)})`);
+      sendPushNotification('🚨 JJ TRADER ALERT!', `${alert.symbol || 'XAUUSD'} แตะเป้าหมาย $${target.toFixed(2)} (ราคาปัจจุบัน $${currentPrice.toFixed(2)})`);
     }
   });
 }
@@ -908,7 +1075,7 @@ function addTradeLogRecord() {
   // Sync to cloud if logged in
   if (sessionToken && sessionToken !== 'guest_mode') {
     api('POST', '/api/history', {
-      symbol: record.symbol, direction, entry: parseFloat(entry), sl: 0, tp: 0,
+      symbol: record.symbol, direction, entry: parseFloat(entry), close: parseFloat(close), sl: 0, tp: 0,
       lot, result: record.result, pnl: parseFloat(pnl), note
     }).catch(() => {});
   }
@@ -998,7 +1165,7 @@ async function loadTradeLogs() {
           ${resultBadge}
         </div>
         <div class="trade-row-secondary">
-          $${l.entry} ➔ $${l.close} | P&L: <strong class="${pnlClass}">${pnlText}</strong>
+          $${l.entry} ➔ ${l.close !== undefined && l.close !== null ? '$' + l.close : '-'} | P&L: <strong class="${pnlClass}">${pnlText}</strong>
         </div>
         ${l.note !== '-' ? `<div class="trade-note">💡 ${escapeHtml(l.note)}</div>` : ''}
       </div>

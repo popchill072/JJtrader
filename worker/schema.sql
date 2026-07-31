@@ -32,7 +32,9 @@ CREATE TABLE IF NOT EXISTS notes (
 CREATE TABLE IF NOT EXISTS alerts (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
-  price REAL NOT NULL,
+  symbol TEXT DEFAULT 'XAUUSD',
+  target_price REAL NOT NULL,
+  condition TEXT DEFAULT 'above',
   active INTEGER DEFAULT 1,
   created_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -45,6 +47,7 @@ CREATE TABLE IF NOT EXISTS trade_history (
   symbol TEXT NOT NULL,
   direction TEXT NOT NULL,
   entry REAL,
+  close REAL,
   sl REAL,
   tp REAL,
   lot REAL,

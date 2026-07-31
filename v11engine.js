@@ -23,7 +23,11 @@ function v11CalcATR(prices, period) {
   if (prices.length < period + 1) return Math.abs(prices[prices.length - 1] - prices[0]) / (prices.length || 1);
   let sum = 0;
   const start = prices.length - period;
-  for (let i = start; i < prices.length; i++) { sum += Math.abs(prices[i] - prices[i - 1]); }
+  for (let i = start; i < prices.length; i++) {
+    const prev = prices[i - 1];
+    const diff = prev !== undefined ? Math.abs(prices[i] - prev) : 0;
+    sum += diff;
+  }
   return sum / period;
 }
 
