@@ -309,41 +309,49 @@ body {
 
 /* ── MAIN LAYOUT ── */
 .main-layout {
-  display: grid;
-  grid-template-columns: 1fr 420px;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
   padding: 16px 24px;
   flex: 1;
 }
 
-@media (max-width: 1300px) {
-  .main-layout { grid-template-columns: 1fr; }
+/* ── CHART SECTION (fills screen) ── */
+.chart-section {
+  height: calc(100vh - 190px);
+  min-height: 340px;
+  flex-shrink: 0;
 }
 
 /* ── CHART GRID (2x2) ── */
 .chart-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
   gap: 10px;
   height: 100%;
 }
 
-@media (max-width: 800px) {
-  .chart-grid { grid-template-columns: 1fr; }
+@media (max-width: 900px) {
+  .chart-section { height: auto; min-height: 0; }
+  .chart-grid { grid-template-columns: 1fr; grid-template-rows: none; }
 }
 
 .chart-card {
   display: flex;
   flex-direction: column;
-  min-height: 320px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .chart-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 6px 12px;
   border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
 }
 
 .chart-title {
@@ -352,9 +360,30 @@ body {
 
 .chart-container-sm {
   flex: 1;
-  min-height: 280px;
+  min-height: 0;
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   overflow: hidden;
+}
+
+/* ── TOOLS SECTION (below charts) ── */
+.tools-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tools-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.tool-main-card {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 900px) {
+  .tools-row { grid-template-columns: 1fr; }
 }
 
 /* ── CARDS ── */
@@ -409,11 +438,7 @@ body {
 
 
 
-/* ── SIDEBAR ── */
-.sidebar-section {
-  display: flex; flex-direction: column; gap: 16px;
-}
-
+/* ── TOOLS CARDS ── */
 .v11-card {
   border: 1px solid var(--border-gold);
   background: linear-gradient(145deg, rgba(18,22,32,0.8), rgba(14,18,28,0.8));

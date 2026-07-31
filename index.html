@@ -157,11 +157,12 @@
       </div>
     </section>
 
-    <!-- RIGHT: TOOLS -->
-    <aside class="sidebar-section">
+    <!-- TOOLS (BELOW CHARTS) -->
+    <section class="tools-section">
 
+      <div class="tools-row">
       <!-- SESSION CLOCK -->
-      <div class="card" style="padding:14px">
+      <div class="card tool-card" style="padding:14px">
         <div class="card-title" style="font-size:13px;margin-bottom:10px">
           <span>🌍</span>
           <span>World Sessions Clock</span>
@@ -246,8 +247,10 @@
         </div>
       </div>
 
+      </div>
+
       <!-- TOOL PANELS -->
-      <div class="card" style="padding:16px">
+      <div class="card tool-main-card" style="padding:16px">
         <div class="tool-tabs">
           <button class="tool-tab-btn active" onclick="switchToolTab('tab-calc', this)">🧮 Calculator</button>
           <button class="tool-tab-btn" onclick="switchToolTab('tab-news', this); loadForexNews();">📰 News</button>
@@ -489,7 +492,7 @@
         </div>
       </div>
 
-    </aside>
+    </section>
   </main>
 
   <!-- FOOTER -->
@@ -498,7 +501,7 @@
     <div>สถานะ: <span style="color:var(--accent-green)">● ปกติ</span></div>
   </footer>
 
-  <script src="app.js?v=19.0"></script>
-  <script src="v11engine.js?v=19.0"></script>
+  <script src="app.js?v=20.0"></script>
+  <script src="v11engine.js?v=20.0"></script>
 </body>
 </html>
