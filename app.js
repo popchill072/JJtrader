@@ -88,6 +88,7 @@ function clearAllIntervals() {
   intervalIds = [];
   if (newsCountdownInterval) { clearInterval(newsCountdownInterval); newsCountdownInterval = null; }
   if (newsRefreshInterval) { clearInterval(newsRefreshInterval); newsRefreshInterval = null; }
+  stopChatPolling();
 }
 
 // ── AUTH & STARTUP SYSTEM ───────────────────────────────
@@ -1190,6 +1191,98 @@ function playAlertAudio() {
 function escapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+
+// ── TEAM CHAT (polling) ────────────────────────────────
+let chatPollingInterval = null;
+let chatLastId = 0;
+let chatMessageCache = [];
+
+function startChatPolling() {
+  if (chatPollingInterval) return;
+  fetchChatMessages();
+  chatPollingInterval = setInterval(fetchChatMessages, 3000);
+  intervalIds.push(chatPollingInterval);
+}
+
+function stopChatPolling() {
+  if (chatPollingInterval) {
+    clearInterval(chatPollingInterval);
+    chatPollingInterval = null;
+  }
+}
+
+async function fetchChatMessages() {
+  if (sessionToken && sessionToken !== 'guest_mode') {
+    try {
+      const data = await api('GET', `/api/chat?after=${chatLastId}`);
+      if (Array.isArray(data) && data.length) {
+        const container = document.getElementById('chat-messages');
+        const wasEmpty = !chatMessageCache.length;
+        chatMessageCache = chatMessageCache.concat(data).slice(-200);
+        chatLastId = data[data.length - 1].id;
+        if (wasEmpty || container) renderChatMessages();
+      }
+    } catch (e) {}
+  }
+}
+
+function renderChatMessages() {
+  const container = document.getElementById('chat-messages');
+  if (!container) return;
+  if (!chatMessageCache.length) {
+    container.innerHTML = '<div class="empty-state">ยังไม่มีข้อความ... เป็นคนแรกที่พิมพ์ครับ</div>';
+    return;
+  }
+  container.innerHTML = '';
+  const myUsername = currentUsername || 'Guest Trader';
+  chatMessageCache.forEach(msg => {
+    const item = document.createElement('div');
+    item.className = 'chat-msg' + (msg.username === myUsername ? ' mine' : '');
+    item.innerHTML = `
+      <div class="chat-msg-head">
+        <span class="chat-msg-user">${escapeHtml(msg.username || '?')}</span>
+        <span class="chat-msg-time">${escapeHtml(msg.created_at || '')}</span>
+      </div>
+      <div class="chat-msg-text">${escapeHtml(msg.message)}</div>
+    `;
+    container.appendChild(item);
+  });
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendChatMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input ? input.value.trim() : '';
+  if (!text) return;
+  if (!sessionToken || sessionToken === 'guest_mode') {
+    showToast('❌ ต้องล็อกอินเป็นสมาชิกก่อนถึงจะพิมพ์แชทได้ครับ');
+    return;
+  }
+  try {
+    const res = await api('POST', '/api/chat', { message: text });
+    if (res && res.ok) {
+      if (input) input.value = '';
+      // Immediately include own message in the cache for snappy UX
+      if (res.id > chatLastId) {
+        chatMessageCache.push({ id: res.id, username: res.username || currentUsername, message: text, created_at: res.created_at || new Date().toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) });
+        chatLastId = res.id;
+        renderChatMessages();
+      }
+    } else {
+      showToast('❌ ไม่สามารถส่งข้อความได้ กรุณาลองใหม่ครับ');
+    }
+  } catch (e) {
+    showToast('❌ ไม่สามารถส่งข้อความได้ กรุณาลองใหม่ครับ');
+  }
+}
+
+// Enter key sends chat
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && document.activeElement && document.activeElement.id === 'chat-input') {
+    e.preventDefault();
+    sendChatMessage();
+  }
+});
 
 // ── TRADE JOURNAL & PERFORMANCE ANALYTICS ──────────────────
 function getLocalTradeLogs() {

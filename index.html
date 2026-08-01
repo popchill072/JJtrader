@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logo.jpg">
-  <link rel="stylesheet" href="styles.css?v=26.0">
+  <link rel="stylesheet" href="styles.css?v=27.0">
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body>
@@ -276,6 +276,7 @@
           <button class="tool-tab-btn" onclick="switchToolTab('tab-alert', this)">🔔 Alert</button>
           <button class="tool-tab-btn" onclick="switchToolTab('tab-trade-log', this); loadTradeLogs();">📊 Trade Log</button>
           <button class="tool-tab-btn" onclick="switchToolTab('tab-journal', this)">📝 Journal</button>
+          <button class="tool-tab-btn" onclick="switchToolTab('tab-chat', this); startChatPolling()">💬 Chat</button>
         </div>
 
         <!-- TAB: CALCULATOR -->
@@ -508,6 +509,22 @@
             <div class="empty-state">ยังไม่มีแผนบันทึก...</div>
           </div>
         </div>
+
+        <!-- TAB: CHAT -->
+        <div class="tool-panel" id="tab-chat">
+          <div class="card-title" style="margin-bottom:8px;font-size:12px">
+            <span>💬</span>
+            <span>แชททีม (คุยกันในองค์กร)</span>
+          </div>
+          <div id="chat-messages" class="chat-messages">
+            <div class="empty-state">กำลังโหลดข้อความ...</div>
+          </div>
+          <div class="chat-input-row">
+            <input type="text" id="chat-input" class="chat-input" placeholder="พิมพ์ข้อความ..." maxlength="500" autocomplete="off">
+            <button class="btn-primary" style="font-size:13px;padding:10px 16px;width:auto" onclick="sendChatMessage()">ส่ง</button>
+          </div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:6px">💡 แชทนี้เฉพาะสมาชิกที่ล็อกอิน ข้อความอัปเดตอัตโนมัติทุก 3 วินาที</div>
+        </div>
       </div>
 
     </section>
@@ -519,8 +536,8 @@
     <div>สถานะ: <span style="color:var(--accent-green)">● ปกติ</span></div>
   </footer>
 
-  <script src="app.js?v=26.0"></script>
-  <script src="v11engine.js?v=26.0"></script>
+  <script src="app.js?v=27.0"></script>
+  <script src="v11engine.js?v=27.0"></script>
 
   <!-- Cloudflare Web Analytics -->
   <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "ed896493cd304caa97cd0809d973c369", "spa": true}'></script>

@@ -672,7 +672,36 @@ export default {
       return respond({ ok: true });
     }
 
-    return fail('ไม่พบ API endpoint นี้ครับ', 404);
+      // ── TEAM CHAT (polling) ─────────────────────────
+      // GET /api/chat?after=<id>  -> messages newer than <id> (default last 50)
+      if (path === '/api/chat' && method === 'GET') {
+        const after = parseInt(url.searchParams.get('after') || '0', 10) || 0;
+        const { results } = await DB.prepare(
+          'SELECT id, username, message, created_at FROM chat_messages WHERE id > ? ORDER BY id ASC LIMIT 100'
+        ).bind(after).all();
+        return respond(results || []);
+      }
+
+      // POST /api/chat  { message }
+      if (path === '/api/chat' && method === 'POST') {
+        const body = await readJson(request);
+        if (!body) return fail('ข้อมูล JSON ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง', 400);
+        const message = sanitizeText(body.message, 500);
+        if (!message) return fail('ข้อความว่างครับ');
+        const created = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'short', timeStyle: 'short' });
+        const { meta } = await DB.prepare(
+          'INSERT INTO chat_messages (user_id, username, message, created_at) VALUES (?, ?, ?, ?)'
+        ).bind(user.id, user.username, message, created).run();
+        return respond({ ok: true, id: meta.last_row_id, username: user.username, created_at: created });
+      }
+
+      // Wrong method on known protected paths -> 405
+      if (path === '/api/chat' || path === '/api/preferences' || path === '/api/notes' ||
+          path === '/api/alerts' || path === '/api/history') {
+        return fail('Method นี้ไม่รองรับครับ', 405);
+      }
+
+      return fail('ไม่พบ API endpoint นี้ครับ', 404);
     } catch (error) {
       return respond({ error: '⚠️ เซิร์ฟเวอร์มีข้อผิดพลาดภายใน กรุณาลองใหม่อีกครั้ง' }, 500);
     }
