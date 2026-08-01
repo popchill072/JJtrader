@@ -171,16 +171,27 @@ async function handleLoginSubmit() {
   }
 }
 
+function togglePinVisible(inputId, btnEl) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const isHidden = input.type === 'password';
+  input.type = isHidden ? 'text' : 'password';
+  if (btnEl) btnEl.textContent = isHidden ? '🙈' : '👁️';
+  input.focus();
+}
+
 async function handleRegisterSubmit() {
   const usernameInput = document.getElementById('reg-username');
   const emailInput = document.getElementById('reg-email');
   const pinInput = document.getElementById('reg-pin');
+  const pinConfirmInput = document.getElementById('reg-pin-confirm');
   const errEl = document.getElementById('reg-error-msg');
   const btn = document.getElementById('register-btn');
 
   const username = usernameInput ? usernameInput.value.trim() : '';
   const email = emailInput ? emailInput.value.trim() : '';
   const pin = pinInput ? pinInput.value.trim() : '';
+  const pinConfirm = pinConfirmInput ? pinConfirmInput.value.trim() : '';
 
   if (errEl) errEl.classList.remove('show');
 
@@ -196,6 +207,16 @@ async function handleRegisterSubmit() {
 
   if (!pin || pin.length < 4) {
     if (errEl) { errEl.textContent = '❌ กรุณากำหนด PIN อย่างน้อย 4 หลัก (เช่น 1234)'; errEl.classList.add('show'); }
+    return;
+  }
+
+  if (!pinConfirm) {
+    if (errEl) { errEl.textContent = '❌ กรุณายืนยัน PIN อีกครั้งในช่อง "ยืนยัน PIN"'; errEl.classList.add('show'); }
+    return;
+  }
+
+  if (pin !== pinConfirm) {
+    if (errEl) { errEl.textContent = '❌ PIN ทั้งสองช่องไม่ตรงกัน กรุณากรอกให้ตรงกัน'; errEl.classList.add('show'); }
     return;
   }
 

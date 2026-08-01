@@ -152,6 +152,32 @@ body {
 
 .login-input::placeholder { color: var(--text-muted); letter-spacing: 0; }
 
+.pw-field {
+  position: relative;
+  width: 100%;
+}
+
+.pw-field .login-input {
+  padding-right: 46px;
+}
+
+.pw-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 17px;
+  padding: 6px;
+  line-height: 1;
+  opacity: 0.6;
+  transition: var(--transition);
+}
+
+.pw-toggle:hover { opacity: 1; }
+
 .btn-primary {
   background: var(--gold-gradient);
   border: none; color: #000;

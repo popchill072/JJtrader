@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logo.jpg">
-  <link rel="stylesheet" href="styles.css?v=23.0">
+  <link rel="stylesheet" href="styles.css?v=24.0">
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body>
@@ -44,7 +44,14 @@
       <form id="form-register" class="login-form" style="display:none" onsubmit="event.preventDefault(); handleRegisterSubmit();">
         <input type="text" id="reg-username" class="login-input" placeholder="ตั้งชื่อผู้ใช้งาน (Username)" maxlength="30" autocomplete="off" required>
         <input type="email" id="reg-email" class="login-input" placeholder="อีเมลของคุณ (Email)" maxlength="60" autocomplete="email" required>
-        <input type="password" id="reg-pin" class="login-input" placeholder="ตั้ง PIN 4-6 หลัก" maxlength="12" inputmode="numeric" autocomplete="new-password" required>
+        <div class="pw-field">
+          <input type="password" id="reg-pin" class="login-input" placeholder="ตั้ง PIN 4-6 หลัก" maxlength="12" inputmode="numeric" autocomplete="new-password" required>
+          <button type="button" class="pw-toggle" onclick="togglePinVisible('reg-pin', this)" tabindex="-1" title="แสดง/ซ่อน PIN">👁️</button>
+        </div>
+        <div class="pw-field">
+          <input type="password" id="reg-pin-confirm" class="login-input" placeholder="ยืนยัน PIN อีกครั้ง" maxlength="12" inputmode="numeric" autocomplete="new-password" required>
+          <button type="button" class="pw-toggle" onclick="togglePinVisible('reg-pin-confirm', this)" tabindex="-1" title="แสดง/ซ่อน PIN">👁️</button>
+        </div>
         <div class="login-error" id="reg-error-msg"></div>
         <button type="submit" class="btn-primary" id="register-btn" style="background:linear-gradient(135deg,#00e676,#00b0ff);color:#000;">✨ ยืนยันสมัครสมาชิก</button>
         <div class="login-hint">
@@ -511,7 +518,7 @@
     <div>สถานะ: <span style="color:var(--accent-green)">● ปกติ</span></div>
   </footer>
 
-  <script src="app.js?v=23.0"></script>
-  <script src="v11engine.js?v=23.0"></script>
+  <script src="app.js?v=24.0"></script>
+  <script src="v11engine.js?v=24.0"></script>
 </body>
 </html>
