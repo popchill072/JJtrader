@@ -1192,10 +1192,38 @@ function escapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// ── TEAM CHAT (polling) ────────────────────────────────
+// ── TEAM CHAT (polling, floating window) ───────────────
 let chatPollingInterval = null;
 let chatLastId = 0;
 let chatMessageCache = [];
+let chatPendingImage = null;
+let chatWindowOpen = false;
+let chatUnreadCount = 0;
+
+function toggleChatWindow(forceOpen) {
+  const win = document.getElementById('chat-window');
+  const fab = document.getElementById('chat-fab');
+  if (!win) return;
+  chatWindowOpen = (typeof forceOpen === 'boolean') ? forceOpen : !chatWindowOpen;
+  if (chatWindowOpen) {
+    win.classList.add('open');
+    chatUnreadCount = 0;
+    updateChatUnreadBadge();
+    renderChatMessages();
+    const input = document.getElementById('chat-input');
+    if (input) input.focus();
+    startChatPolling();
+  } else {
+    win.classList.remove('open');
+  }
+}
+
+function updateChatUnreadBadge() {
+  const badge = document.getElementById('chat-unread-badge');
+  if (!badge) return;
+  badge.textContent = chatUnreadCount;
+  badge.classList.toggle('show', chatUnreadCount > 0 && !chatWindowOpen);
+}
 
 function startChatPolling() {
   if (chatPollingInterval) return;
@@ -1216,11 +1244,15 @@ async function fetchChatMessages() {
     try {
       const data = await api('GET', `/api/chat?after=${chatLastId}`);
       if (Array.isArray(data) && data.length) {
-        const container = document.getElementById('chat-messages');
-        const wasEmpty = !chatMessageCache.length;
         chatMessageCache = chatMessageCache.concat(data).slice(-200);
         chatLastId = data[data.length - 1].id;
-        if (wasEmpty || container) renderChatMessages();
+        if (chatWindowOpen) {
+          renderChatMessages();
+        } else {
+          chatUnreadCount += data.length;
+          updateChatUnreadBadge();
+          playChatNewMessageSound();
+        }
       }
     } catch (e) {}
   }
@@ -1233,38 +1265,128 @@ function renderChatMessages() {
     container.innerHTML = '<div class="empty-state">ยังไม่มีข้อความ... เป็นคนแรกที่พิมพ์ครับ</div>';
     return;
   }
+  const shouldScroll = container.scrollTop + container.clientHeight >= container.scrollHeight - 40;
   container.innerHTML = '';
   const myUsername = currentUsername || 'Guest Trader';
   chatMessageCache.forEach(msg => {
     const item = document.createElement('div');
     item.className = 'chat-msg' + (msg.username === myUsername ? ' mine' : '');
+    let body = '';
+    if (msg.message) body += `<div class="chat-msg-text">${escapeHtml(msg.message)}</div>`;
+    if (msg.image) {
+      body += `<img class="chat-msg-img" src="${escapeHtml(msg.image)}" alt="ภาพจากแชท" onclick="window.open(this.src,'_blank')">`;
+    }
     item.innerHTML = `
       <div class="chat-msg-head">
         <span class="chat-msg-user">${escapeHtml(msg.username || '?')}</span>
         <span class="chat-msg-time">${escapeHtml(msg.created_at || '')}</span>
       </div>
-      <div class="chat-msg-text">${escapeHtml(msg.message)}</div>
+      ${body}
     `;
     container.appendChild(item);
   });
-  container.scrollTop = container.scrollHeight;
+  if (shouldScroll || chatWindowOpen) container.scrollTop = container.scrollHeight;
+}
+
+function playChatNewMessageSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(660, ctx.currentTime);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.3);
+  } catch (e) {}
+}
+
+function handleChatImageSelect(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    showToast('❌ กรุณาเลือกไฟล์รูปภาพเท่านั้นครับ');
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('❌ รูปใหญ่เกินไป (สูงสุด 5MB) กรุณาเลือกไฟล์ที่เล็กลง');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    compressChatImage(e.target.result, (compressed) => {
+      chatPendingImage = compressed;
+      const preview = document.getElementById('chat-image-preview');
+      const previewImg = document.getElementById('chat-image-preview-img');
+      if (preview && previewImg) {
+        preview.style.display = 'block';
+        previewImg.src = compressed;
+      }
+    });
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function compressChatImage(dataUrl, callback) {
+  const img = new Image();
+  img.onload = () => {
+    const MAX_W = 1000;
+    const MAX_H = 1000;
+    let { width, height } = img;
+    if (width > MAX_W || height > MAX_H) {
+      const ratio = Math.min(MAX_W / width, MAX_H / height);
+      width = Math.round(width * ratio);
+      height = Math.round(height * ratio);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, width, height);
+    // JPEG quality 0.75; PNG stays PNG (needed for transparency)
+    const mime = img.src.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+    callback(canvas.toDataURL(mime, 0.75));
+  };
+  img.onerror = () => { showToast('❌ ไม่สามารถอ่านไฟล์รูปได้'); };
+  img.src = dataUrl;
+}
+
+function clearChatImage() {
+  chatPendingImage = null;
+  const preview = document.getElementById('chat-image-preview');
+  const input = document.getElementById('chat-image-input');
+  if (preview) preview.style.display = 'none';
+  if (input) input.value = '';
 }
 
 async function sendChatMessage() {
   const input = document.getElementById('chat-input');
   const text = input ? input.value.trim() : '';
-  if (!text) return;
+  if (!text && !chatPendingImage) return;
   if (!sessionToken || sessionToken === 'guest_mode') {
     showToast('❌ ต้องล็อกอินเป็นสมาชิกก่อนถึงจะพิมพ์แชทได้ครับ');
     return;
   }
   try {
-    const res = await api('POST', '/api/chat', { message: text });
+    const payload = { message: text };
+    if (chatPendingImage) payload.image = chatPendingImage;
+    const res = await api('POST', '/api/chat', payload);
     if (res && res.ok) {
+      const sentImage = chatPendingImage;
       if (input) input.value = '';
+      clearChatImage();
       // Immediately include own message in the cache for snappy UX
       if (res.id > chatLastId) {
-        chatMessageCache.push({ id: res.id, username: res.username || currentUsername, message: text, created_at: res.created_at || new Date().toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) });
+        chatMessageCache.push({
+          id: res.id,
+          username: res.username || currentUsername,
+          message: text,
+          image: sentImage || null,
+          created_at: res.created_at || new Date().toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })
+        });
         chatLastId = res.id;
         renderChatMessages();
       }

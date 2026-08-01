@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logo.jpg">
-  <link rel="stylesheet" href="styles.css?v=27.0">
+  <link rel="stylesheet" href="styles.css?v=28.0">
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body>
@@ -276,7 +276,6 @@
           <button class="tool-tab-btn" onclick="switchToolTab('tab-alert', this)">🔔 Alert</button>
           <button class="tool-tab-btn" onclick="switchToolTab('tab-trade-log', this); loadTradeLogs();">📊 Trade Log</button>
           <button class="tool-tab-btn" onclick="switchToolTab('tab-journal', this)">📝 Journal</button>
-          <button class="tool-tab-btn" onclick="switchToolTab('tab-chat', this); startChatPolling()">💬 Chat</button>
         </div>
 
         <!-- TAB: CALCULATOR -->
@@ -510,21 +509,6 @@
           </div>
         </div>
 
-        <!-- TAB: CHAT -->
-        <div class="tool-panel" id="tab-chat">
-          <div class="card-title" style="margin-bottom:8px;font-size:12px">
-            <span>💬</span>
-            <span>แชททีม (คุยกันในองค์กร)</span>
-          </div>
-          <div id="chat-messages" class="chat-messages">
-            <div class="empty-state">กำลังโหลดข้อความ...</div>
-          </div>
-          <div class="chat-input-row">
-            <input type="text" id="chat-input" class="chat-input" placeholder="พิมพ์ข้อความ..." maxlength="500" autocomplete="off">
-            <button class="btn-primary" style="font-size:13px;padding:10px 16px;width:auto" onclick="sendChatMessage()">ส่ง</button>
-          </div>
-          <div style="font-size:10px;color:var(--text-muted);margin-top:6px">💡 แชทนี้เฉพาะสมาชิกที่ล็อกอิน ข้อความอัปเดตอัตโนมัติทุก 3 วินาที</div>
-        </div>
       </div>
 
     </section>
@@ -536,8 +520,45 @@
     <div>สถานะ: <span style="color:var(--accent-green)">● ปกติ</span></div>
   </footer>
 
-  <script src="app.js?v=27.0"></script>
-  <script src="v11engine.js?v=27.0"></script>
+  <!-- COMMUNITY CHAT (floating window) -->
+  <div class="chat-fab" id="chat-fab" onclick="toggleChatWindow()" title="แชททีม">
+    <span class="chat-fab-icon">💬</span>
+    <span class="chat-fab-badge" id="chat-unread-badge">0</span>
+  </div>
+
+  <div class="chat-window" id="chat-window">
+    <div class="chat-window-header">
+      <div class="chat-window-title">
+        <span class="chat-window-avatar">👥</span>
+        <div>
+          <div style="font-weight:800;font-size:13px;color:var(--gold-light)">แชททีม</div>
+          <div style="font-size:9px;color:var(--accent-green)">● สมาชิกออนไลน์</div>
+        </div>
+      </div>
+      <button class="chat-close-btn" onclick="toggleChatWindow(false)" title="ปิด">✕</button>
+    </div>
+    <div id="chat-messages" class="chat-messages">
+      <div class="empty-state">กำลังโหลดข้อความ...</div>
+    </div>
+    <div id="chat-image-preview" class="chat-image-preview" style="display:none">
+      <div class="chat-image-preview-inner">
+        <img id="chat-image-preview-img" alt="รูปที่จะส่ง">
+        <button type="button" class="chat-image-remove" onclick="clearChatImage()">✕</button>
+      </div>
+    </div>
+    <div class="chat-input-row">
+      <label class="chat-attach-btn" title="อัปโหลดรูปภาพ">
+        <input type="file" id="chat-image-input" accept="image/*" style="display:none" onchange="handleChatImageSelect(event)">
+        🖼️
+      </label>
+      <input type="text" id="chat-input" class="chat-input" placeholder="พิมพ์ข้อความ..." maxlength="500" autocomplete="off">
+      <button class="btn-primary" style="font-size:13px;padding:10px 16px;width:auto" onclick="sendChatMessage()">ส่ง</button>
+    </div>
+    <div style="font-size:9px;color:var(--text-muted);padding:6px 12px;border-top:1px solid var(--border-subtle);text-align:center">เฉพาะสมาชิกที่ล็อกอิน · อัปเดตอัตโนมัติทุก 3 วินาที</div>
+  </div>
+
+  <script src="app.js?v=28.0"></script>
+  <script src="v11engine.js?v=28.0"></script>
 
   <!-- Cloudflare Web Analytics -->
   <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "ed896493cd304caa97cd0809d973c369", "spa": true}'></script>

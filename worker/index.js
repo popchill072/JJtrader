@@ -677,21 +677,30 @@ export default {
       if (path === '/api/chat' && method === 'GET') {
         const after = parseInt(url.searchParams.get('after') || '0', 10) || 0;
         const { results } = await DB.prepare(
-          'SELECT id, username, message, created_at FROM chat_messages WHERE id > ? ORDER BY id ASC LIMIT 100'
+          'SELECT id, username, message, image, created_at FROM chat_messages WHERE id > ? ORDER BY id ASC LIMIT 100'
         ).bind(after).all();
         return respond(results || []);
       }
 
-      // POST /api/chat  { message }
+      // POST /api/chat  { message?, image? }
       if (path === '/api/chat' && method === 'POST') {
         const body = await readJson(request);
         if (!body) return fail('ข้อมูล JSON ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง', 400);
         const message = sanitizeText(body.message, 500);
-        if (!message) return fail('ข้อความว่างครับ');
+        // Validate optional image: must be a data URL of a supported image type
+        let image = null;
+        if (body.image) {
+          const img = String(body.image);
+          const isImage = /^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(img);
+          if (!isImage) return fail('รูปแบบรูปภาพไม่ถูกต้องครับ', 400);
+          if (img.length > 1_500_000) return fail('รูปภาพใหญ่เกินไป (สูงสุดประมาณ 1MB) กรุณาเลือกรูปที่เล็กลง', 400);
+          image = img;
+        }
+        if (!message && !image) return fail('กรุณาพิมพ์ข้อความหรือแนบรูปภาพครับ');
         const created = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'short', timeStyle: 'short' });
         const { meta } = await DB.prepare(
-          'INSERT INTO chat_messages (user_id, username, message, created_at) VALUES (?, ?, ?, ?)'
-        ).bind(user.id, user.username, message, created).run();
+          'INSERT INTO chat_messages (user_id, username, message, image, created_at) VALUES (?, ?, ?, ?, ?)'
+        ).bind(user.id, user.username, message, image, created).run();
         return respond({ ok: true, id: meta.last_row_id, username: user.username, created_at: created });
       }
 
