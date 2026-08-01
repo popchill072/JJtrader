@@ -150,9 +150,10 @@ function resolveCorsOrigin(request) {
   if (!origin) return 'https://jj-trader.pages.dev';
   try {
     const url = new URL(origin);
-    if (url.hostname.endsWith('.pages.dev') || url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
-      return origin;
-    }
+    // Exact allowlist, plus any *.jj-trader.pages.dev preview/PR subdomain
+    if (ALLOWED_ORIGINS.includes(origin)) return origin;
+    if (url.hostname === 'jj-trader.pages.dev' || url.hostname.endsWith('.jj-trader.pages.dev')) return origin;
+    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') return origin;
   } catch {}
   return 'https://jj-trader.pages.dev';
 }
@@ -161,6 +162,7 @@ function corsHeaders(request) {
   const origin = resolveCorsOrigin(request);
   return {
     'Access-Control-Allow-Origin': origin,
+    'Vary': 'Origin',
     'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   };
@@ -220,6 +222,12 @@ const rateLimitStore = new Map();
 
 function checkRateLimit(ip) {
   const now = Date.now();
+  // Prune stale entries to keep memory bounded
+  if (rateLimitStore.size > 1000) {
+    for (const [key, entry] of rateLimitStore) {
+      if (now > entry.resetAt) rateLimitStore.delete(key);
+    }
+  }
   const entry = rateLimitStore.get(ip);
   if (!entry || now > entry.resetAt) {
     rateLimitStore.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
@@ -230,6 +238,37 @@ function checkRateLimit(ip) {
   }
   entry.count++;
   return true;
+}
+
+// Safe JSON body parser -> returns null on malformed input
+async function readJson(request) {
+  try {
+    const body = await request.json();
+    return (body && typeof body === 'object') ? body : {};
+  } catch (e) {
+    return null;
+  }
+}
+
+// Sanitize free-text fields against stored XSS / length abuse
+function sanitizeText(value, maxLen = 300) {
+  if (value === undefined || value === null) return '';
+  let s = String(value).replace(/[<>]/g, '').trim();
+  if (maxLen > 0 && s.length > maxLen) s = s.slice(0, maxLen);
+  return s;
+}
+
+// Coerce a value to a number or a fallback
+function toNum(value, fallback = null) {
+  const n = parseFloat(value);
+  return (Number.isFinite(n)) ? n : fallback;
+}
+
+// Prune expired sessions (run opportunistically on login/register)
+async function pruneSessions(DB) {
+  try {
+    await DB.prepare('DELETE FROM sessions WHERE expires_at < ?').bind(new Date().toISOString()).run();
+  } catch (e) {}
 }
 
 // Get user from Authorization header
@@ -298,6 +337,26 @@ export default {
           status: 200,
           headers: { 'Content-Type': 'text/html; charset=utf-8', ...corsHeaders(request) }
         });
+      }
+
+      // ── PRICE PROXY (DXY / USOIL via Yahoo Finance) ──
+      // Direct browser fetches to Yahoo are CORS-blocked, so proxy here.
+      if (path === '/api/price' && method === 'GET') {
+        const sym = (url.searchParams.get('symbol') || '').toUpperCase();
+        const yahooSymbol = sym === 'DXY' ? 'DX-Y.NYB' : (sym === 'USOIL' || sym === 'OIL' ? 'CL=F' : null);
+        if (!yahooSymbol) return fail('symbol ไม่ถูกต้อง (ใช้ DXY หรือ USOIL)', 400);
+        try {
+          const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}`, {
+            headers: { 'User-Agent': TV_UA, 'Accept': 'application/json' },
+          });
+          if (!res.ok) return fail('ไม่สามารถดึงราคาได้ กรุณาลองใหม่', 502);
+          const body = await res.json();
+          const price = body?.chart?.result?.[0]?.meta?.regularMarketPrice;
+          if (!price || isNaN(price)) return fail('ไม่สามารถดึงราคาได้ กรุณาลองใหม่', 502);
+          return respond({ price, symbol: sym });
+        } catch (e) {
+          return fail('ไม่สามารถดึงราคาได้ กรุณาลองใหม่', 502);
+        }
       }
 
       // ── FOREXFACTORY NEWS API ─────────────────────────
@@ -382,20 +441,31 @@ export default {
           return fail('⚠️ มีการลงทะเบียนบ่อยเกินไป กรุณารอสักครู่ แล้วลองใหม่อีกครั้ง', 429);
         }
 
-        const { username, pin, email } = await request.json();
-        if (!username || !pin || String(pin).trim().length < 4) {
-          return fail('กรุณากรอกชื่อผู้ใช้ และ PIN (อย่างน้อย 4 หลัก) ให้ครบถ้วนครับ');
+        const body = await readJson(request);
+        if (!body) return fail('ข้อมูล JSON ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง', 400);
+
+        const { username, pin, email } = body;
+        if (!username || !pin || String(pin).trim().length < 4 || String(pin).trim().length > 6 || !/^\d+$/.test(String(pin).trim())) {
+          return fail('กรุณากรอกชื่อผู้ใช้ และ PIN 4-6 หลัก (ตัวเลขเท่านั้น) ให้ครบถ้วนครับ');
         }
         if (!email || !email.includes('@')) {
           return fail('กรุณากรอก อีเมล (Email) ให้ถูกต้องครับ');
         }
 
-        const cleanUsername = username.trim();
-        const cleanEmail = email.trim().toLowerCase();
+        const cleanUsername = sanitizeText(username, 30);
+        const cleanEmail = sanitizeText(email, 60).toLowerCase();
+        if (!cleanUsername) {
+          return fail('ชื่อผู้ใช้ไม่ถูกต้องครับ');
+        }
 
         const existing = await DB.prepare('SELECT id FROM users WHERE username = ?').bind(cleanUsername).first();
         if (existing) {
           return fail('❌ ชื่อผู้ใช้นี้ถูกใช้งานแล้ว กรุณาใช้ชื่ออื่น หรือกดสลับไปหน้าเข้าสู่ระบบ', 400);
+        }
+
+        const existingEmail = await DB.prepare('SELECT id FROM users WHERE email = ?').bind(cleanEmail).first();
+        if (existingEmail) {
+          return fail('❌ อีเมลนี้ถูกใช้งานแล้ว กรุณาใช้อีเมลอื่น', 400);
         }
 
         const salt = generateSalt();
@@ -405,16 +475,21 @@ export default {
         try {
           await DB.prepare('INSERT INTO users (id, username, pin_hash, salt, email) VALUES (?, ?, ?, ?, ?)').bind(newId, cleanUsername, pinHash, salt, cleanEmail).run();
         } catch(e) {
-          // Fallback if email/salt columns not yet in users table schema
-          await DB.prepare('INSERT INTO users (id, username, pin_hash) VALUES (?, ?, ?)').bind(newId, cleanUsername, pinHash).run();
+          // Fallback if email/salt columns not yet in users table schema.
+          // Re-hash with the legacy fixed salt so verifyPin() can still log the user in.
+          const legacyHash = await hashPin(String(pin).trim(), '_jj_trader_salt');
+          await DB.prepare('INSERT INTO users (id, username, pin_hash) VALUES (?, ?, ?)').bind(newId, cleanUsername, legacyHash).run();
         }
         
-        await DB.prepare('INSERT INTO preferences (user_id) VALUES (?)').bind(newId).run();
+        try {
+          await DB.prepare('INSERT INTO preferences (user_id) VALUES (?)').bind(newId).run();
+        } catch (e) {}
 
         // Create session (30 days)
         const token = genId();
         const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
         await DB.prepare('INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)').bind(token, newId, expires).run();
+        await pruneSessions(DB);
 
         return respond({ token, username: cleanUsername, message: 'สมัครสมาชิกสำเร็จ!' });
       }
@@ -426,13 +501,16 @@ export default {
           return fail('⚠️ มีการขอเข้าใช้ระบบบ่อยเกินไป กรุณารอสักครู่ แล้วลองใหม่อีกครั้ง', 429);
         }
 
-        const { username, pin } = await request.json();
+        const body = await readJson(request);
+        if (!body) return fail('ข้อมูล JSON ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง', 400);
+
+        const { username, pin } = body;
         if (!username || !pin || String(pin).trim().length < 4) {
           return fail('กรุณากรอกชื่อผู้ใช้และ PIN (อย่างน้อย 4 หลัก) ครับ');
         }
 
         // Check if user exists (need salt)
-        let user = await DB.prepare('SELECT id, pin_hash, salt FROM users WHERE username = ?').bind(username.trim()).first();
+        let user = await DB.prepare('SELECT id, pin_hash, salt FROM users WHERE username = ?').bind(sanitizeText(username, 30)).first();
         if (!user) {
           return fail('❌ ชื่อผู้ใช้หรือ PIN ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง', 401);
         }
@@ -447,8 +525,24 @@ export default {
         const token = genId();
         const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
         await DB.prepare('INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)').bind(token, user.id, expires).run();
+        await pruneSessions(DB);
 
         return respond({ token, username: username.trim() });
+      }
+
+      // POST /api/auth/logout  (revoke current token)
+      if (path === '/api/auth/logout' && method === 'POST') {
+        const auth = request.headers.get('Authorization') || '';
+        const token = auth.replace('Bearer ', '').trim();
+        if (token) {
+          await DB.prepare('DELETE FROM sessions WHERE token = ?').bind(token).run();
+        }
+        return respond({ ok: true });
+      }
+
+      // Wrong method on known public paths -> 405
+      if (path === '/api/auth/login' || path === '/api/auth/register' || path === '/api/news') {
+        return fail('Method นี้ไม่รองรับครับ', 405);
       }
 
     // All routes below require auth
@@ -466,7 +560,15 @@ export default {
 
     // POST /api/preferences  { balance, risk_pct, timeframe, symbol }
     if (path === '/api/preferences' && method === 'POST') {
-      const { balance, risk_pct, timeframe, symbol } = await request.json();
+      const body = await readJson(request);
+      if (!body) return fail('ข้อมูล JSON ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง', 400);
+
+      const { balance, risk_pct, timeframe, symbol } = body;
+      // Never bind undefined -> D1 throws; coalesce to defaults
+      const cleanBalance = toNum(balance, 1000);
+      const cleanRisk = toNum(risk_pct, 1);
+      const cleanTimeframe = sanitizeText(timeframe, 20) || '240';
+      const cleanSymbol = sanitizeText(symbol, 30) || 'OANDA:XAUUSD';
       await DB.prepare(`
         INSERT INTO preferences (user_id, balance, risk_pct, timeframe, symbol, updated_at)
         VALUES (?, ?, ?, ?, ?, datetime('now'))
@@ -476,7 +578,7 @@ export default {
           timeframe = excluded.timeframe,
           symbol = excluded.symbol,
           updated_at = excluded.updated_at
-      `).bind(user.id, balance, risk_pct, timeframe, symbol).run();
+      `).bind(user.id, cleanBalance, cleanRisk, cleanTimeframe, cleanSymbol).run();
       return respond({ ok: true });
     }
 
@@ -489,7 +591,9 @@ export default {
 
     // POST /api/notes  { text }
     if (path === '/api/notes' && method === 'POST') {
-      const { text } = await request.json();
+      const body = await readJson(request);
+      if (!body) return fail('ข้อมูล JSON ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง', 400);
+      const text = sanitizeText(body.text, 2000);
       if (!text) return fail('ข้อความว่างครับ');
       const id = genId();
       const date = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'short', timeStyle: 'short' });
@@ -513,12 +617,16 @@ export default {
 
     // POST /api/alerts  { symbol, target_price, condition }
     if (path === '/api/alerts' && method === 'POST') {
-      const { symbol, target_price, condition } = await request.json();
-      const price = parseFloat(target_price);
-      if (!price || isNaN(price)) return fail('ราคาเป้าหมายว่างครับ');
+      const body = await readJson(request);
+      if (!body) return fail('ข้อมูล JSON ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง', 400);
+      const { symbol, target_price, condition } = body;
+      const price = toNum(target_price, null);
+      if (price === null || isNaN(price)) return fail('ราคาเป้าหมายว่างครับ');
       const id = genId();
+      const cleanSymbol = sanitizeText(symbol, 30) || 'XAUUSD';
+      const cleanCondition = sanitizeText(condition, 10) === 'below' ? 'below' : 'above';
       await DB.prepare('INSERT INTO alerts (id, user_id, symbol, target_price, condition, price) VALUES (?, ?, ?, ?, ?, ?)')
-        .bind(id, user.id, symbol || 'XAUUSD', price, condition || 'above', price).run();
+        .bind(id, user.id, cleanSymbol, price, cleanCondition, price).run();
       return respond({ ok: true, id });
     }
 
@@ -538,13 +646,22 @@ export default {
 
     // POST /api/history  { symbol, direction, entry, close, sl, tp, lot, result, pnl, note }
     if (path === '/api/history' && method === 'POST') {
-      const body = await request.json();
+      const body = await readJson(request);
+      if (!body) return fail('ข้อมูล JSON ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง', 400);
       const id = genId();
       const date = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'short', timeStyle: 'short' });
+      const cleanSymbol = sanitizeText(body.symbol, 30) || 'XAUUSD';
+      const cleanDirection = (sanitizeText(body.direction, 10)).toUpperCase() === 'SELL' ? 'SELL' : 'BUY';
+      const cleanNote = sanitizeText(body.note, 500);
+      const cleanResult = (sanitizeText(body.result, 10)).toUpperCase() === 'LOSS' ? 'LOSS' : 'WIN';
       await DB.prepare(`
         INSERT INTO trade_history (id, user_id, symbol, direction, entry, close, sl, tp, lot, result, pnl, note, date)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(id, user.id, body.symbol || 'XAUUSD', body.direction || 'BUY', body.entry, body.close, body.sl, body.tp, body.lot, body.result, body.pnl || 0, body.note || '', date).run();
+      `).bind(
+        id, user.id, cleanSymbol, cleanDirection,
+        toNum(body.entry, 0), toNum(body.close, 0), toNum(body.sl, null), toNum(body.tp, null),
+        toNum(body.lot, 0.01), cleanResult, toNum(body.pnl, 0), cleanNote, date
+      ).run();
       return respond({ ok: true, id });
     }
 

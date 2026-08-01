@@ -312,6 +312,28 @@ body {
   flex-wrap: wrap;
 }
 
+.asset-price-badge {
+  background: rgba(0,230,118,0.08);
+  border: 1px solid rgba(0,230,118,0.35);
+  color: var(--accent-green);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  .asset-price-badge {
+    width: 100%;
+    text-align: center;
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+}
+
 .btn-asset, .btn-tf, .btn-indicator {
   background: transparent;
   border: 1px solid var(--border-subtle);
