@@ -357,9 +357,40 @@ body {
   height: 100%;
 }
 
+/* Layout modes (user-selectable) */
+.chart-grid.layout-vertical {
+  grid-template-columns: 1fr;
+  grid-template-rows: none;
+  overflow-y: auto;
+  align-content: start;
+}
+.chart-grid.layout-vertical .chart-card {
+  height: 360px;
+  min-height: 360px;
+}
+.chart-grid.layout-horizontal {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: none;
+  grid-auto-rows: 1fr;
+  overflow-y: auto;
+}
+
+.layout-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+}
+.layout-btn.active {
+  background: rgba(255,215,0,0.15);
+  border-color: var(--border-gold-active);
+  color: var(--gold-light);
+}
+
 @media (max-width: 900px) {
   .chart-section { height: auto; min-height: 0; }
   .chart-grid { grid-template-columns: 1fr; grid-template-rows: none; }
+  .chart-grid:not(.layout-grid) .chart-card { height: 360px; min-height: 360px; }
   .chart-card { height: 360px; min-height: 360px; }
   .chart-container-sm { min-height: 300px; }
 }

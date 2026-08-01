@@ -13,7 +13,38 @@ const ALLOWED_ORIGINS = [
 let newsCache = { data: null, ts: 0 };
 const NEWS_CACHE_TTL = 60 * 1000;
 const NEWS_DB_TTL = 30 * 60 * 1000;
-const NEWS_HTTP_CACHE_URL = 'https://jj-trader-api/_ff_calendar_thisweek.json';
+const NEWS_HTTP_CACHE_URL = 'https://jj-trader-api/_news_thisweek.json';
+
+const TV_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+const TV_HEADERS = {
+  'User-Agent': TV_UA,
+  'Accept': 'application/json',
+  'Referer': 'https://www.tradingview.com/',
+  'Origin': 'https://www.tradingview.com',
+};
+
+async function fetchTradingViewNews() {
+  const now = new Date();
+  const fmt = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+  const from = new Date(now);
+  from.setUTCDate(from.getUTCDate() - 8);
+  const to = new Date(now);
+  to.setUTCDate(to.getUTCDate() + 14);
+  const url = `https://economic-calendar.tradingview.com/events?from=${fmt(from)}&to=${fmt(to)}`;
+  const res = await fetch(url, { headers: TV_HEADERS });
+  if (!res.ok) return null;
+  const body = await res.json();
+  if (body.status !== 'ok' || !Array.isArray(body.result)) return null;
+  return body.result.map(item => ({
+    title: item.title || item.indicator || '',
+    country: item.country || '',
+    date: item.date || item.referenceDate || null,
+    impact: item.importance >= 1 ? 'High' : (item.importance === 0 ? 'Medium' : 'Low'),
+    actual: item.actual != null ? `${item.actual}${item.unit || ''}` : '',
+    forecast: item.forecast != null ? `${item.forecast}${item.unit || ''}` : '',
+    previous: item.previous != null ? `${item.previous}${item.unit || ''}` : '',
+  })).filter(item => item.title && item.date);
+}
 
 async function fetchForexNews(DB) {
   if (newsCache.data && Date.now() - newsCache.ts < NEWS_CACHE_TTL) {
@@ -47,6 +78,22 @@ async function fetchForexNews(DB) {
       }
     }
   } catch (e) {}
+
+  let tvData = null;
+  try { tvData = await fetchTradingViewNews(); } catch (e) {}
+
+  if (tvData && tvData.length) {
+    newsCache = { data: tvData, ts: Date.now() };
+    try {
+      await DB.prepare('INSERT INTO news_cache (id, payload, fetched_at) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, fetched_at = excluded.fetched_at')
+        .bind('default', JSON.stringify(tvData), Date.now()).run();
+    } catch (e) {}
+    const cachedRes = new Response(JSON.stringify(tvData), {
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=600' },
+    });
+    try { await cache.put(cacheKey, cachedRes); } catch (e) {}
+    return { data: tvData, isMock: false };
+  }
 
   try {
     const ffRes = await fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json', {
@@ -257,25 +304,47 @@ export default {
       if (path === '/api/news' && method === 'GET') {
         const period = url.searchParams.get('period') || 'thisweek';
 
-        const isSameDate = (iso, targetDate) => {
+        // Convert a Date to a YYYY-MM-DD string in Bangkok timezone (UTC+7) without locale APIs
+        const dateInTh = (dt) => {
           try {
-            const d = new Date(iso);
-            const y = d.getUTCFullYear();
-            const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-            const day = String(d.getUTCDate()).padStart(2, '0');
-            return `${y}-${m}-${day}` === targetDate;
-          } catch (e) { return false; }
+            const d = new Date(dt);
+            const t = new Date(d.getTime() + 7 * 3600 * 1000);
+            return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-${String(t.getUTCDate()).padStart(2, '0')}`;
+          } catch (e) { return null; }
         };
 
         const { data: all } = await fetchForexNews(DB);
-        if (Array.isArray(all) && all.length && period !== 'nextweek') {
+        if (Array.isArray(all) && all.length) {
+          const now = new Date();
+          const todayTh = dateInTh(now);
+
+          const startOfWeekUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+          const bkkDay = (startOfWeekUtc.getTime() + 7 * 3600 * 1000);
+          const dayOfWeek = (Math.floor(bkkDay / 86400000) + 4) % 7;
+          startOfWeekUtc.setUTCDate(startOfWeekUtc.getUTCDate() - dayOfWeek);
+          const weekStart = dateInTh(startOfWeekUtc);
+          const weekEnd = new Date(startOfWeekUtc);
+          weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+          const weekEndStr = dateInTh(weekEnd);
+          const nextWeekStart = new Date(startOfWeekUtc);
+          nextWeekStart.setUTCDate(nextWeekStart.getUTCDate() + 7);
+          const nextWeekStartStr = dateInTh(nextWeekStart);
+          const nextWeekEnd = new Date(nextWeekStart);
+          nextWeekEnd.setUTCDate(nextWeekEnd.getUTCDate() + 6);
+          const nextWeekEndStr = dateInTh(nextWeekEnd);
+
           let data = all;
-          if (period === 'today' || period === 'yesterday') {
-            const now = new Date();
-            const target = new Date(now);
-            target.setUTCDate(target.getUTCDate() + (period === 'yesterday' ? -1 : 0));
-            const targetDate = `${target.getUTCFullYear()}-${String(target.getUTCMonth() + 1).padStart(2, '0')}-${String(target.getUTCDate()).padStart(2, '0')}`;
-            data = all.filter(item => item.date && isSameDate(item.date, targetDate));
+          if (period === 'today') {
+            data = all.filter(item => item.date && dateInTh(item.date) === todayTh);
+          } else if (period === 'yesterday') {
+            const y = new Date(now);
+            y.setUTCDate(y.getUTCDate() - 1);
+            const yTh = dateInTh(y);
+            data = all.filter(item => item.date && dateInTh(item.date) === yTh);
+          } else if (period === 'thisweek') {
+            data = all.filter(item => item.date && dateInTh(item.date) >= weekStart && dateInTh(item.date) <= weekEndStr);
+          } else if (period === 'nextweek') {
+            data = all.filter(item => item.date && dateInTh(item.date) >= nextWeekStartStr && dateInTh(item.date) <= nextWeekEndStr);
           }
           return respond(data);
         }

@@ -263,6 +263,7 @@ function hideLoginOverlay() {
 
 // ── INIT APP AFTER LOGIN ───────────────────────────────
 function initApp() {
+  try { autoAdaptChartLayout(); } catch (e) { console.error(e); }
   try { renderMainChart(); } catch (e) { console.error(e); }
   try { renderTechnicalGauge(); } catch (e) { console.error(e); }
   try { loadPreferences(); } catch (e) { console.error(e); }
@@ -285,6 +286,13 @@ function initApp() {
     calculateV11ProEngine(initPrice);
   } catch (e) { console.error(e); }
 }
+
+window.addEventListener('resize', () => {
+  clearTimeout(window.__layoutResizeTimer);
+  window.__layoutResizeTimer = setTimeout(() => {
+    try { autoAdaptChartLayout(); } catch (e) { console.error(e); }
+  }, 250);
+});
 
 // ── TRADINGVIEW CHART ──────────────────────────────────
 let customIndicatorId = localStorage.getItem('jj_custom_indicator_id') || '';
@@ -406,6 +414,35 @@ function applyChartPreset(name, btnElement) {
 
   renderMainChart();
   showToast(`✅ เปลี่ยนชุด Timeframe เป็น: ${preset.label}`);
+}
+
+// ── CHART LAYOUT (grid / vertical / horizontal) ────────
+let currentChartLayout = 'grid';
+
+function setChartLayout(layout, btnElement, save = true) {
+  currentChartLayout = layout;
+  const grid = document.getElementById('chart-grid');
+  if (grid) {
+    grid.classList.remove('layout-grid', 'layout-vertical', 'layout-horizontal');
+    grid.classList.add(`layout-${layout}`);
+  }
+  document.querySelectorAll('.layout-btn').forEach(btn => btn.classList.remove('active'));
+  if (btnElement) btnElement.classList.add('active');
+  else {
+    document.querySelectorAll('.layout-btn').forEach(btn => {
+      if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(`'${layout}'`)) btn.classList.add('active');
+    });
+  }
+  if (save) {
+    localStorage.setItem('jj_chart_layout', layout);
+  }
+}
+
+function autoAdaptChartLayout() {
+  const isMobile = window.innerWidth <= 900;
+  const saved = localStorage.getItem('jj_chart_layout') || 'grid';
+  const layout = isMobile ? (saved === 'horizontal' ? 'vertical' : saved) : saved;
+  setChartLayout(layout, null, false);
 }
 
 // ── PREFERENCES (Cloud) ────────────────────────────────
@@ -772,7 +809,8 @@ function renderNewsListWithCountdown() {
         <span id="news-cd-${index}" style="font-weight:700;color:var(--accent-cyan);">⏳ กำลังคำนวณ...</span>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;color:var(--text-muted);font-size:10px;border-top:1px solid rgba(255,255,255,0.05);padding-top:3px;">
-        <span>คาดการณ์: <strong style="color:#fff;">${escapeHtml(item.forecast || '-')}</strong> | ครั้งก่อน: <strong>${escapeHtml(item.previous || '-')}</strong></span>
+        <span>คาดการณ์: <strong style="color:#fff;">${escapeHtml(item.forecast || '-')}</strong> | ครั้งก่อน: <strong style="color:#fff;">${escapeHtml(item.previous || '-')}</strong></span>
+        <span>ประกาศ: <strong style="color:var(--accent-green);">${escapeHtml(item.actual || '-')}</strong></span>
       </div>
     `;
     container.appendChild(el);
