@@ -1258,6 +1258,7 @@ let chatWindowOpen = false;
 let chatUnreadCount = 0;
 let chatSoundEnabled = (localStorage.getItem('jj_chat_sound') || 'on') === 'on';
 let chatSoundType = localStorage.getItem('jj_chat_sound_type') || 'ding';
+const BASE_PAGE_TITLE = document.title;
 
 const CHAT_SOUNDS = {
   ding:   { name: 'ติ๊ง', play: () => tone(880, 0.12, 'sine', 0.16) },
@@ -1389,9 +1390,16 @@ function toggleChatWindow(forceOpen) {
 
 function updateChatUnreadBadge() {
   const badge = document.getElementById('chat-unread-badge');
-  if (!badge) return;
-  badge.textContent = chatUnreadCount;
-  badge.classList.toggle('show', chatUnreadCount > 0 && !chatWindowOpen);
+  if (badge) {
+    badge.textContent = chatUnreadCount > 99 ? '99+' : chatUnreadCount;
+    badge.classList.toggle('show', chatUnreadCount > 0 && !chatWindowOpen);
+  }
+  // Mirror unread count onto the browser tab title like typical chat apps
+  if (chatUnreadCount > 0) {
+    document.title = `(${chatUnreadCount > 99 ? '99+' : chatUnreadCount}) ${BASE_PAGE_TITLE}`;
+  } else {
+    document.title = BASE_PAGE_TITLE;
+  }
 }
 
 function startChatPolling() {
@@ -1418,15 +1426,28 @@ async function fetchChatMessages() {
         if (chatWindowOpen) {
           renderChatMessages();
         } else {
-          chatUnreadCount += data.length;
-          updateChatUnreadBadge();
-          const latest = data[data.length - 1];
-          notifyChatUnread(latest.username, latest.message);
+          // Only count as unread when the tab is hidden, like a real chat app
+          if (document.hidden || document.visibilityState !== 'visible') {
+            chatUnreadCount += data.length;
+            updateChatUnreadBadge();
+            const latest = data[data.length - 1];
+            notifyChatUnread(latest.username, latest.message);
+          } else {
+            renderChatMessages();
+          }
         }
       }
     } catch (e) {}
   }
 }
+
+// Clear unread badge when the user comes back to the tab and the chat is open
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && chatWindowOpen) {
+    chatUnreadCount = 0;
+    updateChatUnreadBadge();
+  }
+});
 
 function renderChatMessages() {
   const container = document.getElementById('chat-messages');
