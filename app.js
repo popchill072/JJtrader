@@ -989,12 +989,22 @@ async function fetchPriceForSymbol(symbol) {
   try {
     if (symbol.includes('XAU') || symbol.includes('GOLD')) {
       try {
-        const res = await fetch('https://api.gold-api.com/price/XAU');
+        const res = await fetch(API_BASE + '/api/price?symbol=XAU');
         if (res.ok) {
           const data = await res.json();
           if (data.price) livePrice = parseFloat(data.price);
         }
       } catch (e) {}
+
+      if (!livePrice) {
+        try {
+          const res = await fetch('https://api.gold-api.com/price/XAU');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.price) livePrice = parseFloat(data.price);
+          }
+        } catch (e) {}
+      }
 
       if (!livePrice) {
         try {
@@ -1007,12 +1017,22 @@ async function fetchPriceForSymbol(symbol) {
       }
     } else if (symbol.includes('XAG') || symbol.includes('SILVER')) {
       try {
-        const res = await fetch('https://api.gold-api.com/price/XAG');
+        const res = await fetch(API_BASE + '/api/price?symbol=XAG');
         if (res.ok) {
           const data = await res.json();
           if (data.price) livePrice = parseFloat(data.price);
         }
       } catch (e) {}
+
+      if (!livePrice) {
+        try {
+          const res = await fetch('https://api.gold-api.com/price/XAG');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.price) livePrice = parseFloat(data.price);
+          }
+        } catch (e) {}
+      }
     } else if (symbol.includes('BTC')) {
       try {
         const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
@@ -1082,6 +1102,8 @@ async function fetchLiveAssetPrice() {
       try { updateV11ProDashboard(livePrice); } catch(e) {}
     }
   } catch (e) {}
+  // Also evaluate alerts for other assets (each fetches its own live price)
+  checkOtherAssetAlerts();
 }
 
 async function loadPriceAlerts() {
@@ -1158,33 +1180,50 @@ function checkPriceAlerts(currentPrice) {
   const currentSym = normalizeSymbol(currentSymbol);
   priceAlerts.forEach(alert => {
     const alertSym = normalizeSymbol(alert.symbol);
-    // Only evaluate alerts belonging to the currently active asset;
-    // other assets' prices are not being ticked.
+    // Only evaluate alerts for the currently active asset with the passed-in price
     if (alertSym && alertSym !== currentSym) return;
-
-    const target = parseFloat(alert.target_price || alert.price);
-    if (isNaN(target)) return;
-
-    // Hysteresis: only re-arm after price moves a small margin away from target
-    const buffer = target * 0.0005;
-    let triggered = false;
-    if (alert.condition === 'above' && currentPrice >= target) triggered = true;
-    if (alert.condition === 'below' && currentPrice <= target) triggered = true;
-
-    const lastState = triggeredAlertIds.get(alert.id);
-    if (triggered) {
-      if (lastState === 'fired') return; // already fired
-      triggeredAlertIds.set(alert.id, 'fired');
-      playAlertAudio();
-      const symLabel = alert.symbol || 'XAUUSD';
-      showToast(`🚨 ALERT! ${symLabel} แตะเป้าหมาย $${target.toFixed(2)} แล้ว (ราคาปัจจุบัน $${currentPrice.toFixed(2)})`);
-      sendPushNotification('🚨 JJ TRADER ALERT!', `${symLabel} แตะเป้าหมาย $${target.toFixed(2)} (ราคาปัจจุบัน $${currentPrice.toFixed(2)})`);
-    } else {
-      // Re-arm when price clearly moved away from the target
-      const away = alert.condition === 'above' ? currentPrice <= (target - buffer) : currentPrice >= (target + buffer);
-      if (away) triggeredAlertIds.set(alert.id, 'armed');
-    }
+    evaluateAlert(alert, currentPrice);
   });
+}
+
+async function checkOtherAssetAlerts() {
+  try {
+    const currentSym = normalizeSymbol(currentSymbol);
+    for (const alert of priceAlerts) {
+      const alertSym = normalizeSymbol(alert.symbol);
+      if (!alertSym || alertSym === currentSym) continue;
+      const price = await fetchPriceForSymbol(alert.symbol || alertSym);
+      if (price && !isNaN(price) && price > 0) {
+        assetPrices[alertSym] = price;
+        evaluateAlert(alert, price);
+      }
+    }
+  } catch (e) {}
+}
+
+function evaluateAlert(alert, currentPrice) {
+  const target = parseFloat(alert.target_price || alert.price);
+  if (isNaN(target) || !currentPrice || isNaN(currentPrice)) return;
+
+  // Hysteresis: only re-arm after price moves a small margin away from target
+  const buffer = target * 0.0005;
+  let triggered = false;
+  if (alert.condition === 'above' && currentPrice >= target) triggered = true;
+  if (alert.condition === 'below' && currentPrice <= target) triggered = true;
+
+  const lastState = triggeredAlertIds.get(alert.id);
+  if (triggered) {
+    if (lastState === 'fired') return; // already fired
+    triggeredAlertIds.set(alert.id, 'fired');
+    playAlertAudio();
+    const symLabel = alert.symbol || 'XAUUSD';
+    showToast(`🚨 ALERT! ${symLabel} แตะเป้าหมาย $${target.toFixed(2)} แล้ว (ราคาปัจจุบัน $${currentPrice.toFixed(2)})`);
+    sendPushNotification('🚨 JJ TRADER ALERT!', `${symLabel} แตะเป้าหมาย $${target.toFixed(2)} (ราคาปัจจุบัน $${currentPrice.toFixed(2)})`);
+  } else {
+    // Re-arm when price clearly moved away from the target
+    const away = alert.condition === 'above' ? currentPrice <= (target - buffer) : currentPrice >= (target + buffer);
+    if (away) triggeredAlertIds.set(alert.id, 'armed');
+  }
 }
 
 function playAlertAudio() {

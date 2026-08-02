@@ -339,12 +339,15 @@ export default {
         });
       }
 
-      // ── PRICE PROXY (DXY / USOIL via Yahoo Finance) ──
+      // ── PRICE PROXY (gold / silver / DXY / USOIL via Yahoo Finance) ──
       // Direct browser fetches to Yahoo are CORS-blocked, so proxy here.
       if (path === '/api/price' && method === 'GET') {
         const sym = (url.searchParams.get('symbol') || '').toUpperCase();
-        const yahooSymbol = sym === 'DXY' ? 'DX-Y.NYB' : (sym === 'USOIL' || sym === 'OIL' ? 'CL=F' : null);
-        if (!yahooSymbol) return fail('symbol ไม่ถูกต้อง (ใช้ DXY หรือ USOIL)', 400);
+        const yahooSymbol = sym === 'DXY' ? 'DX-Y.NYB'
+          : (sym === 'USOIL' || sym === 'OIL' ? 'CL=F'
+          : (sym === 'XAU' || sym === 'XAUUSD' || sym === 'GOLD' ? 'GC=F'
+          : (sym === 'XAG' || sym === 'XAGUSD' || sym === 'SILVER' ? 'SI=F' : null)));
+        if (!yahooSymbol) return fail('symbol ไม่ถูกต้อง (ใช้ DXY, USOIL, XAU, XAG)', 400);
         try {
           const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}`, {
             headers: { 'User-Agent': TV_UA, 'Accept': 'application/json' },
