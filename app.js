@@ -1198,6 +1198,10 @@ function escapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function escapeJs(str) {
+  return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/`/g, '\\`');
+}
+
 // ── TEAM CHAT (polling, floating window) ───────────────
 let chatPollingInterval = null;
 let chatLastId = 0;
@@ -1329,7 +1333,7 @@ function renderChatMessages() {
     let body = '';
     if (msg.message) body += `<div class="chat-msg-text">${escapeHtml(msg.message)}</div>`;
     if (msg.image) {
-      body += `<img class="chat-msg-img" src="${escapeHtml(msg.image)}" alt="ภาพจากแชท" onclick="window.open(this.src,'_blank')">`;
+      body += `<img class="chat-msg-img" src="${escapeHtml(msg.image)}" alt="ภาพจากแชท" onclick="openChatLightbox('${escapeJs(msg.image)}')">`;
     }
     item.innerHTML = `
       <div class="chat-msg-head">
@@ -1452,6 +1456,27 @@ async function sendChatMessage() {
     showToast('❌ ไม่สามารถส่งข้อความได้ กรุณาลองใหม่ครับ');
   }
 }
+
+function openChatLightbox(src) {
+  const overlay = document.getElementById('chat-lightbox');
+  const img = document.getElementById('chat-lightbox-img');
+  if (!overlay || !img) return;
+  img.src = src;
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeChatLightbox() {
+  const overlay = document.getElementById('chat-lightbox');
+  if (!overlay) return;
+  overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ESC closes lightbox
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeChatLightbox();
+});
 
 // Enter key sends chat
 document.addEventListener('keydown', (e) => {
