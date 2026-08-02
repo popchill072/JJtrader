@@ -487,7 +487,7 @@ function setChartLayout(layout, btnElement, save = true) {
   currentChartLayout = layout;
   const grid = document.getElementById('chart-grid');
   if (grid) {
-    grid.classList.remove('layout-grid', 'layout-vertical', 'layout-horizontal');
+    grid.classList.remove('layout-grid', 'layout-vertical', 'layout-horizontal', 'layout-focus', 'layout-feature');
     grid.classList.add(`layout-${layout}`);
   }
   document.querySelectorAll('.layout-btn').forEach(btn => btn.classList.remove('active'));
@@ -500,6 +500,12 @@ function setChartLayout(layout, btnElement, save = true) {
   if (save) {
     localStorage.setItem('jj_chart_layout', layout);
   }
+  // Ask each TradingView widget to re-measure after the grid reshapes
+  // (TradingView's widget.resize() is safe and does not re-trigger window resize)
+  clearTimeout(window.__chartWidgetResizeTimer);
+  window.__chartWidgetResizeTimer = setTimeout(() => {
+    widgetInstances.forEach(w => { try { w && typeof w.resize === 'function' && w.resize(); } catch (e) {} });
+  }, 120);
 }
 
 function autoAdaptChartLayout() {
