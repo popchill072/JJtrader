@@ -1228,16 +1228,7 @@ function evaluateAlert(alert, currentPrice) {
 
 function playAlertAudio() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, ctx.currentTime); // A5 note
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.8);
+    tone(880, 0.8, 'sine', 0.3); // A5 note
   } catch (e) {}
 }
 
@@ -1268,9 +1259,37 @@ const CHAT_SOUNDS = {
   marimba:{ name: 'มาริมบา', play: () => { tone(987, 0.12, 'sine', 0.16); setTimeout(() => tone(784, 0.16, 'sine', 0.16), 110); } },
 };
 
+let _sharedAudioCtx = null;
+
+function getAudioContext() {
+  try {
+    if (!_sharedAudioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      _sharedAudioCtx = new AC();
+    }
+    // Resume to satisfy browser autoplay policy (Chrome/Edge block suspended contexts)
+    if (_sharedAudioCtx.state === 'suspended') {
+      _sharedAudioCtx.resume().catch(() => {});
+    }
+    return _sharedAudioCtx;
+  } catch (e) { return null; }
+}
+
+// Unlock audio on the first user gesture so later sounds play without extra clicks
+function unlockChatAudio() {
+  try {
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+  } catch (e) {}
+}
+document.addEventListener('click', unlockChatAudio, { once: false });
+document.addEventListener('touchstart', unlockChatAudio, { once: false });
+document.addEventListener('keydown', unlockChatAudio, { once: false });
+
 function tone(freq, dur, type = 'sine', vol = 0.12) {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
+    if (!ctx || ctx.state !== 'running') return;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = type;
@@ -1286,7 +1305,8 @@ function tone(freq, dur, type = 'sine', vol = 0.12) {
 
 function sweep(from, to, dur, type = 'sine', vol = 0.12) {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
+    if (!ctx || ctx.state !== 'running') return;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = type;
@@ -1353,7 +1373,6 @@ function requestChatNotificationPermission() {
 }
 
 function notifyChatUnread(username, message) {
-  if (chatSoundEnabled) playChatNewMessageSound();
   try {
     if ('Notification' in window && Notification.permission === 'granted') {
       const n = new Notification('💬 แชททีม', {
@@ -1426,14 +1445,14 @@ async function fetchChatMessages() {
         if (chatWindowOpen) {
           renderChatMessages();
         } else {
-          // Only count as unread when the tab is hidden, like a real chat app
+          const latest = data[data.length - 1];
+          // Count as unread + play sound whenever the chat window is closed
+          // (tab hidden or not), like a real chat app
+          chatUnreadCount += data.length;
+          updateChatUnreadBadge();
+          if (chatSoundEnabled) playChatNewMessageSound();
           if (document.hidden || document.visibilityState !== 'visible') {
-            chatUnreadCount += data.length;
-            updateChatUnreadBadge();
-            const latest = data[data.length - 1];
             notifyChatUnread(latest.username, latest.message);
-          } else {
-            renderChatMessages();
           }
         }
       }
