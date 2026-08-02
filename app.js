@@ -504,7 +504,8 @@ function setChartLayout(layout, btnElement, save = true) {
 function autoAdaptChartLayout() {
   const isMobile = window.innerWidth <= 900;
   const saved = localStorage.getItem('jj_chart_layout') || 'grid';
-  const layout = isMobile ? (saved === 'horizontal' ? 'vertical' : saved) : saved;
+  let layout = saved;
+  if (isMobile && ['horizontal', 'focus', 'feature'].includes(layout)) layout = 'vertical';
   setChartLayout(layout, null, false);
 }
 

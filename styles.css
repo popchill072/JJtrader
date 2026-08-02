@@ -462,6 +462,28 @@ body {
   overflow-y: auto;
 }
 
+/* 1 big chart on top, 3 small below */
+.chart-grid.layout-focus {
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1.35fr 1fr;
+  grid-template-areas: "big big big" "c1 c2 c3";
+}
+.chart-grid.layout-focus .chart-card:nth-child(1) { grid-area: big; }
+.chart-grid.layout-focus .chart-card:nth-child(2) { grid-area: c1; }
+.chart-grid.layout-focus .chart-card:nth-child(3) { grid-area: c2; }
+.chart-grid.layout-focus .chart-card:nth-child(4) { grid-area: c3; }
+
+/* 1 big chart on the left, 3 small on the right */
+.chart-grid.layout-feature {
+  grid-template-columns: 1.5fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  grid-template-areas: "big c1 c2" "big c3 c3";
+}
+.chart-grid.layout-feature .chart-card:nth-child(1) { grid-area: big; }
+.chart-grid.layout-feature .chart-card:nth-child(2) { grid-area: c1; }
+.chart-grid.layout-feature .chart-card:nth-child(3) { grid-area: c2; }
+.chart-grid.layout-feature .chart-card:nth-child(4) { grid-area: c3; }
+
 /* ── CHART GRID (2x2) ── */
 .chart-grid {
   display: grid;
@@ -478,6 +500,15 @@ body {
   .chart-grid:not(.layout-grid) .chart-card { height: 360px; min-height: 360px; }
   .chart-card { height: 360px; min-height: 360px; }
   .chart-container-sm { min-height: 300px; }
+  .chart-grid.layout-focus, .chart-grid.layout-feature {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    grid-template-areas: none;
+  }
+  .chart-grid.layout-focus .chart-card,
+  .chart-grid.layout-feature .chart-card {
+    grid-area: auto;
+  }
 }
 
 .chart-card {

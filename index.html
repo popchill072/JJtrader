@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;700;800&family=Kanit:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logo.jpg">
-  <link rel="stylesheet" href="styles.css?v=31.0">
+  <link rel="stylesheet" href="styles.css?v=32.0">
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body>
@@ -129,6 +129,8 @@
         <div class="layout-selector">
           <span class="tf-label">📐 มุมมอง:</span>
           <button class="btn-indicator layout-btn active" onclick="setChartLayout('grid', this)" title="กราฟ 2x2 เรียงตาราง (เหมาะจอคอม)">▦ 2x2</button>
+          <button class="btn-indicator layout-btn" onclick="setChartLayout('focus', this)" title="1 จอใหญ่ด้านบน + 3 จอเล็กแถวล่าง">◱ 1+3</button>
+          <button class="btn-indicator layout-btn" onclick="setChartLayout('feature', this)" title="1 จอใหญ่ด้านซ้าย + 3 จอเล็กด้านขวา">◰ 3+1</button>
           <button class="btn-indicator layout-btn" onclick="setChartLayout('vertical', this)" title="กราฟเรียงลงมาด้านเดียว (เหมาะจอมือถือ)">▤ แนวตั้ง</button>
           <button class="btn-indicator layout-btn" onclick="setChartLayout('horizontal', this)" title="กราฟเรียงตามแนวนอน">▬ แนวนอน</button>
         </div>
@@ -568,8 +570,8 @@
     <div class="chat-lightbox-close" onclick="closeChatLightbox()">✕</div>
   </div>
 
-  <script src="app.js?v=31.0"></script>
-  <script src="v11engine.js?v=31.0"></script>
+  <script src="app.js?v=32.0"></script>
+  <script src="v11engine.js?v=32.0"></script>
 
   <!-- Cloudflare Web Analytics -->
   <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "ed896493cd304caa97cd0809d973c369", "spa": true}'></script>
