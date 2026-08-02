@@ -1128,6 +1128,17 @@ select.calc-input {
   transition: var(--transition);
 }
 
+.chat-window-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.chat-close-btn.off {
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+
 .chat-close-btn:hover { color: var(--accent-red); }
 
 .chat-image-preview {

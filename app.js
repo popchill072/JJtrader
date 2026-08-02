@@ -116,6 +116,12 @@ if (document.readyState === 'loading') {
   checkAuthOnStartup();
 }
 
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => updateChatSoundToggleUI());
+} else {
+  updateChatSoundToggleUI();
+}
+
 function switchAuthTab(tab) {
   const formLogin = document.getElementById('form-login');
   const formReg = document.getElementById('form-register');
@@ -1199,6 +1205,54 @@ let chatMessageCache = [];
 let chatPendingImage = null;
 let chatWindowOpen = false;
 let chatUnreadCount = 0;
+let chatSoundEnabled = (localStorage.getItem('jj_chat_sound') || 'on') === 'on';
+
+function updateChatSoundToggleUI() {
+  const btn = document.getElementById('chat-sound-toggle');
+  if (!btn) return;
+  btn.textContent = chatSoundEnabled ? '🔔' : '🔕';
+  btn.classList.toggle('off', !chatSoundEnabled);
+  btn.title = chatSoundEnabled ? 'เสียงแจ้งเตือนเปิดอยู่ (แตะเพื่อปิด)' : 'เสียงแจ้งเตือนปิดอยู่ (แตะเพื่อเปิด)';
+}
+
+function toggleChatSound() {
+  chatSoundEnabled = !chatSoundEnabled;
+  localStorage.setItem('jj_chat_sound', chatSoundEnabled ? 'on' : 'off');
+  updateChatSoundToggleUI();
+  if (chatSoundEnabled) {
+    requestChatNotificationPermission();
+    playChatNewMessageSound();
+    showToast('🔔 เปิดเสียงแจ้งเตือนแล้ว');
+  } else {
+    showToast('🔕 ปิดเสียงแจ้งเตือนแล้ว');
+  }
+}
+
+function requestChatNotificationPermission() {
+  try {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  } catch (e) {}
+}
+
+function notifyChatUnread(username, message) {
+  if (chatSoundEnabled) playChatNewMessageSound();
+  try {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const n = new Notification('💬 แชททีม', {
+        body: (username || 'สมาชิก') + ': ' + (message || 'ส่งรูปภาพ'),
+        tag: 'jj-team-chat',
+        icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><text y="46" font-size="44">💬</text></svg>'
+      });
+      n.onclick = () => {
+        window.focus();
+        toggleChatWindow(true);
+        n.close();
+      };
+    }
+  } catch (e) {}
+}
 
 function toggleChatWindow(forceOpen) {
   const win = document.getElementById('chat-window');
@@ -1251,7 +1305,8 @@ async function fetchChatMessages() {
         } else {
           chatUnreadCount += data.length;
           updateChatUnreadBadge();
-          playChatNewMessageSound();
+          const latest = data[data.length - 1];
+          notifyChatUnread(latest.username, latest.message);
         }
       }
     } catch (e) {}
