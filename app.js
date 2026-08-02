@@ -117,9 +117,10 @@ if (document.readyState === 'loading') {
 }
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => updateChatSoundToggleUI());
+  document.addEventListener('DOMContentLoaded', () => { updateChatSoundToggleUI(); updateChatSoundTypeUI(); });
 } else {
   updateChatSoundToggleUI();
+  updateChatSoundTypeUI();
 }
 
 function switchAuthTab(tab) {
@@ -1211,6 +1212,48 @@ let chatPendingImage = null;
 let chatWindowOpen = false;
 let chatUnreadCount = 0;
 let chatSoundEnabled = (localStorage.getItem('jj_chat_sound') || 'on') === 'on';
+let chatSoundType = localStorage.getItem('jj_chat_sound_type') || 'ding';
+
+const CHAT_SOUNDS = {
+  ding:   { name: 'ติ๊ง', play: () => tone(880, 0.12, 'sine', 0.16) },
+  pop:    { name: 'ป๊อป', play: () => sweep(220, 660, 0.18, 'triangle', 0.14) },
+  chime:  { name: 'กระดิ่ง', play: () => { tone(1046, 0.18, 'sine', 0.14); setTimeout(() => tone(1568, 0.28, 'sine', 0.1), 130); } },
+  beep:   { name: 'บี๊บ', play: () => { tone(784, 0.1, 'square', 0.1); setTimeout(() => tone(988, 0.14, 'square', 0.1), 120); } },
+  marimba:{ name: 'มาริมบา', play: () => { tone(987, 0.12, 'sine', 0.16); setTimeout(() => tone(784, 0.16, 'sine', 0.16), 110); } },
+};
+
+function tone(freq, dur, type = 'sine', vol = 0.12) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    gain.gain.setValueAtTime(vol, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + dur + 0.05);
+  } catch (e) {}
+}
+
+function sweep(from, to, dur, type = 'sine', vol = 0.12) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(from, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(to, ctx.currentTime + dur);
+    gain.gain.setValueAtTime(vol, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + dur + 0.05);
+  } catch (e) {}
+}
 
 function updateChatSoundToggleUI() {
   const btn = document.getElementById('chat-sound-toggle');
@@ -1218,6 +1261,28 @@ function updateChatSoundToggleUI() {
   btn.textContent = chatSoundEnabled ? '🔔' : '🔕';
   btn.classList.toggle('off', !chatSoundEnabled);
   btn.title = chatSoundEnabled ? 'เสียงแจ้งเตือนเปิดอยู่ (แตะเพื่อปิด)' : 'เสียงแจ้งเตือนปิดอยู่ (แตะเพื่อเปิด)';
+}
+
+function updateChatSoundTypeUI() {
+  const sndBtn = document.getElementById('chat-sound-type-toggle');
+  if (!sndBtn) return;
+  const snd = CHAT_SOUNDS[chatSoundType] || CHAT_SOUNDS.ding;
+  sndBtn.textContent = snd.name;
+  sndBtn.title = `เสียงปัจจุบัน: ${snd.name} (แตะเพื่อเปลี่ยนเสียง)`;
+}
+
+function cycleChatSoundType() {
+  const types = Object.keys(CHAT_SOUNDS);
+  const idx = types.indexOf(chatSoundType);
+  chatSoundType = types[(idx + 1) % types.length];
+  localStorage.setItem('jj_chat_sound_type', chatSoundType);
+  const sndBtn = document.getElementById('chat-sound-type-toggle');
+  if (sndBtn) {
+    sndBtn.textContent = CHAT_SOUNDS[chatSoundType].name;
+    sndBtn.title = `เสียงปัจจุบัน: ${CHAT_SOUNDS[chatSoundType].name} (แตะเพื่อเปลี่ยนเสียง)`;
+  }
+  playChatNewMessageSound();
+  showToast(`🎵 เปลี่ยนเสียงแจ้งเตือนเป็น: ${CHAT_SOUNDS[chatSoundType].name}`);
 }
 
 function toggleChatSound() {
@@ -1350,16 +1415,8 @@ function renderChatMessages() {
 
 function playChatNewMessageSound() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(660, ctx.currentTime);
-    gain.gain.setValueAtTime(0.12, ctx.currentTime);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.3);
+    const snd = CHAT_SOUNDS[chatSoundType] || CHAT_SOUNDS.ding;
+    snd.play();
   } catch (e) {}
 }
 
@@ -1488,6 +1545,12 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ── TRADE JOURNAL & PERFORMANCE ANALYTICS ──────────────────
+const CURRENCY_SYMBOLS = { USD: '$', USDT: '₮', USDC: '$', THB: '฿' };
+
+function currencySymbolOf(currency) {
+  return CURRENCY_SYMBOLS[currency] || '$';
+}
+
 function getLocalTradeLogs() {
   try {
     return JSON.parse(localStorage.getItem('jj_trade_logs') || '[]');
@@ -1500,12 +1563,15 @@ function saveLocalTradeLogs(logs) {
 
 function addTradeLogRecord() {
   const dirEl = document.getElementById('log-input-dir');
+  const currencyEl = document.getElementById('log-input-currency');
   const lotEl = document.getElementById('log-input-lot');
   const entryEl = document.getElementById('log-input-entry');
   const closeEl = document.getElementById('log-input-close');
   const noteEl = document.getElementById('log-input-note');
 
   const direction = dirEl ? dirEl.value : 'BUY';
+  const currency = currencyEl ? currencyEl.value : 'USD';
+  const currencySymbol = CURRENCY_SYMBOLS[currency] || '$';
   const lot = parseFloat(lotEl ? lotEl.value : 0.01) || 0.01;
   const entry = parseFloat(entryEl ? entryEl.value : 0);
   const close = parseFloat(closeEl ? closeEl.value : 0);
@@ -1529,6 +1595,7 @@ function addTradeLogRecord() {
     date: new Date().toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }),
     symbol: currentSymbol ? currentSymbol.replace(/.*:/, '') : 'XAUUSD',
     direction,
+    currency,
     lot,
     entry: entry.toFixed(2),
     close: close.toFixed(2),
@@ -1545,14 +1612,14 @@ function addTradeLogRecord() {
   if (closeEl) closeEl.value = '';
   if (noteEl) noteEl.value = '';
 
-  showToast(pnl >= 0 ? `✅ บันทึกออเดอร์: กำไร +$${pnl.toFixed(2)}` : `📉 บันทึกออเดอร์: ขาดทุน -$${Math.abs(pnl).toFixed(2)}`);
+  showToast(pnl >= 0 ? `✅ บันทึกออเดอร์: กำไร +${currencySymbol}${pnl.toFixed(2)}` : `📉 บันทึกออเดอร์: ขาดทุน -${currencySymbol}${Math.abs(pnl).toFixed(2)}`);
   loadTradeLogs();
 
   // Sync to cloud if logged in
   if (sessionToken && sessionToken !== 'guest_mode') {
     api('POST', '/api/history', {
       symbol: record.symbol, direction, entry: parseFloat(entry), close: parseFloat(close), sl: 0, tp: 0,
-      lot, result: record.result, pnl: parseFloat(pnl), note
+      lot, result: record.result, pnl: parseFloat(pnl), note, currency
     }).then(res => {
       // Adopt the server-generated UUID so a later delete hits the right row
       if (res && res.id) {
@@ -1592,7 +1659,12 @@ async function loadTradeLogs() {
     try {
       const remote = await api('GET', '/api/history');
       if (Array.isArray(remote) && remote.length) {
-        saveLocalTradeLogs(remote);
+        // Merge: keep newer local records that haven't synced yet (no server id)
+        const local = getLocalTradeLogs();
+        const merged = remote.slice();
+        const remoteIds = new Set(remote.map(r => r.id));
+        local.forEach(l => { if (!remoteIds.has(l.id)) merged.push(l); });
+        saveLocalTradeLogs(merged);
       }
     } catch (e) {}
   }
@@ -1604,15 +1676,23 @@ async function loadTradeLogs() {
   if (logs.length > 0) {
     const wins = logs.filter(l => l.result === 'WIN').length;
     const winRate = ((wins / logs.length) * 100).toFixed(0);
-    const totalPnl = logs.reduce((sum, l) => sum + parseFloat(l.pnl), 0);
+
+    // Dominant currency for the summary total
+    const freq = {};
+    logs.forEach(l => { const c = l.currency || 'USD'; freq[c] = (freq[c] || 0) + 1; });
+    const mainCur = Object.keys(freq).sort((a, b) => freq[b] - freq[a])[0] || 'USD';
+    const sym = currencySymbolOf(mainCur);
+    const mainLogs = logs.filter(l => (l.currency || 'USD') === mainCur);
+    const totalPnl = mainLogs.reduce((sum, l) => sum + parseFloat(l.pnl), 0);
 
     if (winRateEl) {
       winRateEl.textContent = `${winRate}%`;
       winRateEl.style.color = parseInt(winRate) >= 50 ? 'var(--accent-green)' : 'var(--accent-red)';
     }
     if (pnlEl) {
-      pnlEl.textContent = `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`;
+      pnlEl.textContent = `${totalPnl >= 0 ? '+' : ''}${sym}${totalPnl.toFixed(2)}`;
       pnlEl.style.color = totalPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+      pnlEl.title = `P&L รวมเฉพาะสกุล ${mainCur} (${mainLogs.length} รายการ)`;
     }
   } else {
     if (winRateEl) { winRateEl.textContent = '0%'; winRateEl.style.color = 'var(--accent-green)'; }
@@ -1626,7 +1706,7 @@ async function loadTradeLogs() {
   }
 
   container.innerHTML = '';
-  logs.slice(0, 30).forEach(l => {
+  logs.forEach(l => {
     const item = document.createElement('div');
     item.className = 'trade-item';
 
@@ -1639,11 +1719,13 @@ async function loadTradeLogs() {
       ? '<span class="badge-result win">WIN</span>'
       : '<span class="badge-result loss">LOSS</span>';
 
+    const sym = currencySymbolOf(l.currency || 'USD');
     const pnlClass = parseFloat(l.pnl) >= 0 ? 'pnl-positive' : 'pnl-negative';
-    const pnlText = `${parseFloat(l.pnl) >= 0 ? '+' : ''}$${l.pnl}`;
+    const pnlText = `${parseFloat(l.pnl) >= 0 ? '+' : ''}${sym}${l.pnl}`;
     const safeSym = escapeHtml(l.symbol || '');
     const safeEntry = escapeHtml(l.entry);
-    const safeClose = (l.close !== undefined && l.close !== null) ? '$' + escapeHtml(l.close) : '-';
+    const safeClose = (l.close !== undefined && l.close !== null) ? sym + escapeHtml(l.close) : '-';
+    const safeCur = escapeHtml(l.currency || 'USD');
 
     item.innerHTML = `
       <div class="trade-info">
@@ -1651,10 +1733,11 @@ async function loadTradeLogs() {
           ${dirBadge}
           <strong class="text-gold">${safeSym}</strong>
           <span style="color:var(--text-muted)">${escapeHtml(l.lot)} Lot</span>
+          <span class="badge-cur">${safeCur}</span>
           ${resultBadge}
         </div>
         <div class="trade-row-secondary">
-          $${safeEntry} ➔ ${safeClose} | P&L: <strong class="${pnlClass}">${pnlText}</strong>
+          ${sym}${safeEntry} ➔ ${safeClose} | P&L: <strong class="${pnlClass}">${pnlText}</strong>
         </div>
         ${l.note !== '-' ? `<div class="trade-note">💡 ${escapeHtml(l.note)}</div>` : ''}
       </div>

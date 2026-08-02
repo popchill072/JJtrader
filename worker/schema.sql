@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS trade_history (
   pnl REAL DEFAULT 0,
   note TEXT,
   date TEXT NOT NULL,
+  currency TEXT DEFAULT 'USD',
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 

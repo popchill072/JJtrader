@@ -640,11 +640,11 @@ export default {
     // ── TRADE HISTORY ──────────────────────────────────
     // GET /api/history
     if (path === '/api/history' && method === 'GET') {
-      const { results } = await DB.prepare('SELECT * FROM trade_history WHERE user_id = ? ORDER BY date DESC LIMIT 100').bind(user.id).all();
+      const { results } = await DB.prepare('SELECT * FROM trade_history WHERE user_id = ? ORDER BY date DESC LIMIT 500').bind(user.id).all();
       return respond(results);
     }
 
-    // POST /api/history  { symbol, direction, entry, close, sl, tp, lot, result, pnl, note }
+    // POST /api/history  { symbol, direction, entry, close, sl, tp, lot, result, pnl, note, currency }
     if (path === '/api/history' && method === 'POST') {
       const body = await readJson(request);
       if (!body) return fail('ข้อมูล JSON ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง', 400);
@@ -654,13 +654,14 @@ export default {
       const cleanDirection = (sanitizeText(body.direction, 10)).toUpperCase() === 'SELL' ? 'SELL' : 'BUY';
       const cleanNote = sanitizeText(body.note, 500);
       const cleanResult = (sanitizeText(body.result, 10)).toUpperCase() === 'LOSS' ? 'LOSS' : 'WIN';
+      const cleanCurrency = /^(USD|USDT|USDC|THB)$/.test(String(body.currency || '').toUpperCase()) ? String(body.currency).toUpperCase() : 'USD';
       await DB.prepare(`
-        INSERT INTO trade_history (id, user_id, symbol, direction, entry, close, sl, tp, lot, result, pnl, note, date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO trade_history (id, user_id, symbol, direction, entry, close, sl, tp, lot, result, pnl, note, date, currency)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         id, user.id, cleanSymbol, cleanDirection,
         toNum(body.entry, 0), toNum(body.close, 0), toNum(body.sl, null), toNum(body.tp, null),
-        toNum(body.lot, 0.01), cleanResult, toNum(body.pnl, 0), cleanNote, date
+        toNum(body.lot, 0.01), cleanResult, toNum(body.pnl, 0), cleanNote, date, cleanCurrency
       ).run();
       return respond({ ok: true, id });
     }
