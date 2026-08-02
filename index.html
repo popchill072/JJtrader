@@ -10,9 +10,9 @@
   <meta http-equiv="Expires" content="0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;700;800&family=Kanit:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logo.jpg">
-  <link rel="stylesheet" href="styles.css?v=30.0">
+  <link rel="stylesheet" href="styles.css?v=31.0">
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body>
@@ -53,7 +53,7 @@
           <button type="button" class="pw-toggle" onclick="togglePinVisible('reg-pin-confirm', this)" tabindex="-1" title="แสดง/ซ่อน PIN">👁️</button>
         </div>
         <div class="login-error" id="reg-error-msg"></div>
-        <button type="submit" class="btn-primary" id="register-btn" style="background:linear-gradient(135deg,#00e676,#00b0ff);color:#000;">✨ ยืนยันสมัครสมาชิก</button>
+        <button type="submit" class="btn-primary btn-green" id="register-btn">✨ ยืนยันสมัครสมาชิก</button>
         <div class="login-hint">
           📝 กรอก Username, Email และ PIN เพื่อลงทะเบียน<br>
           ✅ สมัครแล้วเข้าใช้งานระบบวิเคราะห์กราฟได้ทันที
@@ -119,18 +119,20 @@
       <button class="btn-indicator tf-preset-btn" onclick="applyChartPreset('swing', this)" title="1ชม. · 4ชม. · 1วัน · 1สัปดาห์">Swing</button>
       <button class="btn-indicator" onclick="promptCustomIndicator()" title="ตั้งค่าอินดิเคเตอร์">⚙️ Custom Indicator</button>
     </div>
-    <div class="layout-selector">
-      <span class="tf-label">📐 มุมมอง:</span>
-      <button class="btn-indicator layout-btn active" onclick="setChartLayout('grid', this)" title="กราฟ 2x2 เรียงตาราง (เหมาะจอคอม)">▦ 2x2</button>
-      <button class="btn-indicator layout-btn" onclick="setChartLayout('vertical', this)" title="กราฟเรียงลงมาด้านเดียว (เหมาะจอมือถือ)">▤ แนวตั้ง</button>
-      <button class="btn-indicator layout-btn" onclick="setChartLayout('horizontal', this)" title="กราฟเรียงตามแนวนอน">▬ แนวนอน</button>
-    </div>
   </div>
 
   <!-- MAIN LAYOUT -->
   <main class="main-layout">
     <!-- LEFT: CHART -->
     <section class="chart-section">
+      <div class="chart-layout-bar">
+        <div class="layout-selector">
+          <span class="tf-label">📐 มุมมอง:</span>
+          <button class="btn-indicator layout-btn active" onclick="setChartLayout('grid', this)" title="กราฟ 2x2 เรียงตาราง (เหมาะจอคอม)">▦ 2x2</button>
+          <button class="btn-indicator layout-btn" onclick="setChartLayout('vertical', this)" title="กราฟเรียงลงมาด้านเดียว (เหมาะจอมือถือ)">▤ แนวตั้ง</button>
+          <button class="btn-indicator layout-btn" onclick="setChartLayout('horizontal', this)" title="กราฟเรียงตามแนวนอน">▬ แนวนอน</button>
+        </div>
+      </div>
       <div class="chart-grid" id="chart-grid">
         <div class="card chart-card">
           <div class="chart-card-header">
@@ -431,7 +433,7 @@
               </select>
             </div>
           </div>
-          <button class="btn-primary" style="margin-top:8px;font-size:13px;padding:10px" onclick="addPriceAlert()">➕ เพิ่มการตั้งเตือน</button>
+          <button class="btn-primary btn-sm" style="margin-top:8px" onclick="addPriceAlert()">➕ เพิ่มการตั้งเตือน</button>
           <div class="alert-list" id="alerts-list">
             <div class="empty-state">ยังไม่มีรายการตั้งเตือน...</div>
           </div>
@@ -488,7 +490,7 @@
               <label>หมายเหตุ (Note)</label>
               <input type="text" id="log-input-note" class="calc-input" placeholder="เช่น ชนแนวรับ H4 + Bullish Engulfing">
             </div>
-            <button class="btn-primary" style="margin-top:8px;font-size:12px;padding:8px" onclick="addTradeLogRecord()">💾 บันทึกประวัติเทรด</button>
+            <button class="btn-primary btn-sm" style="margin-top:8px" onclick="addTradeLogRecord()">💾 บันทึกประวัติเทรด</button>
           </div>
 
           <div id="trade-log-list-container" style="max-height:200px;overflow-y:auto">
@@ -503,7 +505,7 @@
             <span>บันทึกแผนเทรด (Trade Journal)</span>
           </div>
           <textarea id="journal-text" class="journal-textarea" placeholder="บันทึกแผนเทรดวันนี้ เช่น: รอ Buy ที่แนวรับ Fibonacci $2410 เป้าหมาย R1 $2435..."></textarea>
-          <button class="btn-primary" style="margin-top:6px;font-size:13px;padding:8px" onclick="addNote()">💾 บันทึกแผนเทรด</button>
+          <button class="btn-primary btn-sm" style="margin-top:6px" onclick="addNote()">💾 บันทึกแผนเทรด</button>
           <div class="notes-list-container" id="notes-list" style="margin-top:10px">
             <div class="empty-state">ยังไม่มีแผนบันทึก...</div>
           </div>
@@ -555,7 +557,7 @@
         🖼️
       </label>
       <input type="text" id="chat-input" class="chat-input" placeholder="พิมพ์ข้อความ..." maxlength="500" autocomplete="off">
-      <button class="btn-primary" style="font-size:13px;padding:10px 16px;width:auto" onclick="sendChatMessage()">ส่ง</button>
+      <button class="btn-primary btn-sm" onclick="sendChatMessage()">ส่ง</button>
     </div>
     <div style="font-size:9px;color:var(--text-muted);padding:6px 12px;border-top:1px solid var(--border-subtle);text-align:center">เฉพาะสมาชิกที่ล็อกอิน · อัปเดตอัตโนมัติทุก 3 วินาที</div>
   </div>
@@ -566,8 +568,8 @@
     <div class="chat-lightbox-close" onclick="closeChatLightbox()">✕</div>
   </div>
 
-  <script src="app.js?v=30.0"></script>
-  <script src="v11engine.js?v=30.0"></script>
+  <script src="app.js?v=31.0"></script>
+  <script src="v11engine.js?v=31.0"></script>
 
   <!-- Cloudflare Web Analytics -->
   <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "ed896493cd304caa97cd0809d973c369", "spa": true}'></script>

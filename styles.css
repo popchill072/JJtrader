@@ -23,8 +23,8 @@
   --accent-blue: #2979ff;
   --accent-orange: #ff9100;
 
-  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-heading: 'Outfit', system-ui, sans-serif;
+  --font-main: 'Inter', 'Noto Sans Thai', 'Kanit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-heading: 'Outfit', 'Kanit', 'Noto Sans Thai', system-ui, sans-serif;
   --radius-lg: 16px;
   --radius-md: 10px;
   --radius-sm: 8px;
@@ -199,6 +199,17 @@ body {
   transform: none; box-shadow: none;
 }
 
+.btn-primary.btn-green {
+  background: linear-gradient(135deg, #00e676, #00b0ff);
+}
+
+.btn-primary.btn-sm {
+  font-size: 12px;
+  padding: 8px 14px;
+  width: auto;
+  border-radius: 10px;
+}
+
 .login-error {
   background: rgba(255,82,82,0.08);
   border: 1px solid rgba(255,82,82,0.2);
@@ -269,7 +280,7 @@ body {
 }
 
 .brand-tagline {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--gold-light);
   letter-spacing: 2px;
   font-weight: 600;
@@ -312,6 +323,9 @@ body {
   flex-wrap: wrap;
 }
 
+.asset-selector { min-width: 0; }
+.timeframe-selector { min-width: 0; }
+
 .asset-price-badge {
   background: rgba(0,230,118,0.08);
   border: 1px solid rgba(0,230,118,0.35);
@@ -332,6 +346,19 @@ body {
     padding: 5px 10px;
     font-size: 11px;
   }
+  .asset-selector, .timeframe-selector {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    width: 100%;
+  }
+  .asset-selector::-webkit-scrollbar, .timeframe-selector::-webkit-scrollbar { display: none; }
+  .asset-selector .btn-asset, .timeframe-selector .btn-tf {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .layout-selector { margin-left: 0; }
 }
 
 .btn-asset, .btn-tf, .btn-indicator {
@@ -394,15 +421,27 @@ body {
   height: calc(100vh - 190px);
   min-height: 340px;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-/* ── CHART GRID (2x2) ── */
-.chart-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 10px;
-  height: 100%;
+.chart-layout-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.layout-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.layout-btn.active {
+  background: rgba(255,215,0,0.15);
+  border-color: var(--border-gold-active);
+  color: var(--gold-light);
 }
 
 /* Layout modes (user-selectable) */
@@ -423,16 +462,14 @@ body {
   overflow-y: auto;
 }
 
-.layout-selector {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: 10px;
-}
-.layout-btn.active {
-  background: rgba(255,215,0,0.15);
-  border-color: var(--border-gold-active);
-  color: var(--gold-light);
+/* ── CHART GRID (2x2) ── */
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
 }
 
 @media (max-width: 900px) {
@@ -563,7 +600,7 @@ body {
 }
 
 .v11-stat-label {
-  font-size: 9px; color: var(--text-muted);
+  font-size: 11px; color: var(--text-muted);
   text-transform: uppercase; letter-spacing: 1px;
 }
 
@@ -612,7 +649,7 @@ body {
   box-shadow: 0 0 12px rgba(0,230,118,0.08);
 }
 
-.session-name { font-size: 9px; color: var(--text-muted); margin-bottom: 2px; }
+.session-name { font-size: 11px; color: var(--text-muted); margin-bottom: 2px; }
 .session-time { font-size: 13px; font-weight: 700; font-family: monospace; }
 
 .overlap-badge {
@@ -643,7 +680,7 @@ body {
   background: transparent; border: none;
   color: var(--text-muted);
   padding: 10px 8px;
-  font-size: 10px; font-weight: 700;
+  font-size: 12px; font-weight: 700;
   cursor: pointer;
   border-bottom: 2px solid transparent;
   white-space: nowrap;
@@ -671,7 +708,7 @@ body {
 }
 
 .calc-input-group label {
-  font-size: 9px; color: var(--text-muted);
+  font-size: 11px; color: var(--text-muted);
   text-transform: uppercase; letter-spacing: 0.5px;
 }
 
@@ -710,7 +747,7 @@ select.calc-input {
   margin-top: 8px;
 }
 
-.result-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.result-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
 .risk-val { font-size: 15px; font-weight: 800; color: var(--accent-green); }
 .risk-val-large { font-size: 20px; font-weight: 800; color: var(--gold-primary); }
 
@@ -718,7 +755,7 @@ select.calc-input {
 .pivot-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 8px;
 }
 
@@ -726,7 +763,7 @@ select.calc-input {
   padding: 6px 8px;
   border-bottom: 1px solid var(--border-subtle);
   text-align: center;
-  font-size: 9px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-muted);
@@ -761,19 +798,19 @@ select.calc-input {
 }
 
 .news-title {
-  font-weight: 700; font-size: 11px;
+  font-weight: 700; font-size: 13px;
   color: var(--gold-light);
 }
 
 .news-country {
   background: rgba(255,255,255,0.06);
   padding: 1px 6px; border-radius: 3px;
-  margin-right: 4px; font-size: 10px;
+  margin-right: 4px; font-size: 11px;
 }
 
 .news-time {
   display: flex; justify-content: space-between; align-items: center;
-  color: var(--text-muted); font-size: 10px;
+  color: var(--text-muted); font-size: 11px;
 }
 
 .news-countdown {
@@ -782,7 +819,7 @@ select.calc-input {
 
 .news-footer {
   display: flex; justify-content: space-between;
-  color: var(--text-muted); font-size: 10px;
+  color: var(--text-muted); font-size: 11px;
   border-top: 1px solid var(--border-subtle);
   padding-top: 4px;
 }
@@ -792,7 +829,7 @@ select.calc-input {
   border: 1px solid var(--accent-red);
   color: var(--accent-red);
   padding: 1px 6px; border-radius: 4px;
-  font-size: 9px; font-weight: 800;
+  font-size: 11px; font-weight: 800;
 }
 
 .impact-medium {
@@ -800,7 +837,7 @@ select.calc-input {
   border: 1px solid #ffa000;
   color: #ffa000;
   padding: 1px 6px; border-radius: 4px;
-  font-size: 9px; font-weight: 800;
+  font-size: 11px; font-weight: 800;
 }
 
 .impact-low {
@@ -808,7 +845,7 @@ select.calc-input {
   border: 1px solid var(--gold-primary);
   color: var(--gold-light);
   padding: 1px 6px; border-radius: 4px;
-  font-size: 9px; font-weight: 600;
+  font-size: 11px; font-weight: 600;
 }
 
 /* ── TRADE LOG ── */
@@ -833,7 +870,7 @@ select.calc-input {
 }
 
 .trade-form-title {
-  font-size: 11px; font-weight: 700;
+  font-size: 13px; font-weight: 700;
   color: var(--gold-light); margin-bottom: 8px;
 }
 
@@ -860,7 +897,7 @@ select.calc-input {
 }
 
 .note-date {
-  font-size: 9px; color: var(--text-muted);
+  font-size: 11px; color: var(--text-muted);
   margin-top: 2px;
 }
 
@@ -894,16 +931,16 @@ select.calc-input {
 
 .trade-row {
   display: flex; align-items: center; gap: 6px;
-  font-size: 11px; margin-bottom: 2px;
+  font-size: 13px; margin-bottom: 2px;
 }
 
 .trade-row-secondary {
-  font-size: 10px; color: var(--text-muted);
+  font-size: 12px; color: var(--text-muted);
   margin-top: 2px;
 }
 
 .trade-note {
-  font-size: 9px; color: var(--gold-light);
+  font-size: 11px; color: var(--gold-light);
   opacity: 0.8; margin-top: 2px;
 }
 
@@ -913,7 +950,7 @@ select.calc-input {
 
 .badge-result {
   padding: 1px 6px; border-radius: 4px;
-  font-size: 9px; font-weight: 800;
+  font-size: 11px; font-weight: 800;
 }
 .badge-result.win {
   background: rgba(0,230,118,0.12);
@@ -986,18 +1023,18 @@ select.calc-input {
 }
 
 .chat-msg-user {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--gold-light);
 }
 
 .chat-msg-time {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text-muted);
 }
 
 .chat-msg-text {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-main);
   word-break: break-word;
   white-space: pre-wrap;
