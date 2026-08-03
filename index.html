@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;700;800&family=Kanit:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logo.jpg">
-  <link rel="stylesheet" href="styles.css?v=44.0">
+  <link rel="stylesheet" href="styles.css?v=45.0">
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body>
@@ -95,6 +95,7 @@
       </div>
     </div>
     <div class="header-right">
+      <button type="button" class="btn-theme" id="btn-theme-toggle" onclick="toggleTheme()" title="สลับโหมดสว่าง/มืด">🌙</button>
       <div class="user-badge" id="header-user-badge">
         <span id="header-username">Guest Trader</span>
         <button class="btn-logout" onclick="handleLogout()" title="ออกจากระบบ">⎋ ออกจากระบบ</button>
@@ -143,6 +144,7 @@
               <span id="chart-label-0">XAU/USD - 3 นาที</span>
             </div>
             <span class="badge-live">LIVE</span>
+            <span class="v11-tf-badge" id="v11-tf-badge" title="Timeframe ที่ใช้คำนวณสวิง V11">⚡ 5นาที</span>
             <button type="button" class="btn-indicator" id="v11-fib-overlay-btn" onclick="toggleV11FibOverlay()" title="แสดง/ซ่อนเส้น Fibonacci Retracement (0%-100%)" style="font-size:11px;padding:2px 8px">📐 Fib: ปิด</button>
           </div>
           <div class="chart-container-sm" id="tv_chart_0"></div>
@@ -646,8 +648,8 @@
     <div class="chat-lightbox-close" onclick="closeChatLightbox()">✕</div>
   </div>
 
-  <script src="app.js?v=44.0"></script>
-  <script src="v11engine.js?v=44.0"></script>
+  <script src="app.js?v=45.0"></script>
+  <script src="v11engine.js?v=45.0"></script>
 
   <!-- Cloudflare Web Analytics -->
   <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "ed896493cd304caa97cd0809d973c369", "spa": true}'></script>

@@ -69,8 +69,17 @@ function updateV11ProDashboard(livePrice) {
   const lb = Math.min(V11_CONFIG.lookback, hasCandles ? v11Candles.length : v11PriceHistory.length);
   if (lb < 5) {
     v11AddPriceTick(livePrice);
+    // Show skeleton placeholders while waiting for enough data
+    ['v11-status-badge', 'v11-trend-badge', 'v11-signal-badge', 'v11-val-entry', 'v11-val-tp1', 'v11-val-tp2', 'v11-val-tp3', 'v11-val-sl', 'v11-val-ext161', 'v11-val-atr', 'v11-val-range', 'v11-val-live'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && !el.classList.contains('skeleton')) el.classList.add('skeleton');
+    });
     return;
   }
+  ['v11-status-badge', 'v11-trend-badge', 'v11-signal-badge', 'v11-val-entry', 'v11-val-tp1', 'v11-val-tp2', 'v11-val-tp3', 'v11-val-sl', 'v11-val-ext161', 'v11-val-atr', 'v11-val-range', 'v11-val-live'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.classList.contains('skeleton')) el.classList.remove('skeleton');
+  });
 
   // Build close series (candles preferred, live ticks as fallback)
   const closes = hasCandles ? v11Candles.map(c => c.c) : v11PriceHistory;

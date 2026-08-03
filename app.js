@@ -110,6 +110,31 @@ function checkAuthOnStartup() {
   }
 }
 
+// ── THEME (Light/Dark) ─────────────────────────────────
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('jj_theme', theme);
+  const btn = document.getElementById('btn-theme-toggle');
+  if (btn) btn.textContent = theme === 'light' ? '☀️' : '🌙';
+}
+
+function initTheme() {
+  const saved = localStorage.getItem('jj_theme') || 'dark';
+  applyTheme(saved);
+}
+
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  applyTheme(cur === 'light' ? 'dark' : 'light');
+  showToast(cur === 'light' ? '🌙 เปลี่ยนเป็นโหมดมืดแล้ว' : '☀️ เปลี่ยนเป็นโหมดสว่างแล้ว');
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initTheme);
+} else {
+  initTheme();
+}
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', checkAuthOnStartup);
 } else {
@@ -324,7 +349,7 @@ function initApp() {
   try { calculatePivot(); } catch (e) { console.error(e); }
   try { loadNotes(); } catch (e) { console.error(e); }
   try { loadPriceAlerts(); } catch (e) { console.error(e); }
-  try { v11LoadFibSettings(); refreshV11Candles(); renderV11FibOverlay(); } catch (e) { console.error(e); }
+  try { v11LoadFibSettings(); updateV11TfBadge(); refreshV11Candles(); renderV11FibOverlay(); } catch (e) { console.error(e); }
   try { startLivePriceTicker(); } catch (e) { console.error(e); }
   try { loadForexNews(); } catch (e) { console.error(e); }
   try { requestNotificationPermission(); } catch (e) {}
@@ -697,10 +722,19 @@ function setV11Timeframe(tf) {
   localStorage.setItem('jj_v11_timeframe', tf);
   const sel = document.getElementById('v11-timeframe-select');
   if (sel) sel.value = tf;
+  updateV11TfBadge();
   // Force reload candles for the new interval
   v11CandleSymbol = '';
   fetchV11Candles();
   showToast(`⏱️ เปลี่ยน timeframe ของ V11 เป็น ${V11_TF_OPTIONS[tf].label} แล้วครับ`);
+}
+
+function updateV11TfBadge() {
+  const badge = document.getElementById('v11-tf-badge');
+  const tf = V11_TF_OPTIONS[v11Timeframe] || V11_TF_OPTIONS['5m'];
+  if (badge) {
+    badge.textContent = '⚡ ' + tf.label.replace(' นาที', 'นาที').replace(' ชั่วโมง', 'ชม.');
+  }
 }
 
 // Binance spot klines are close to real spot price (PAXG tracks XAU spot within ~$1-3),
