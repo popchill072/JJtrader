@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;700;800&family=Kanit:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logo.jpg">
-  <link rel="stylesheet" href="styles.css?v=42.0">
+  <link rel="stylesheet" href="styles.css?v=43.0">
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body>
@@ -298,6 +298,17 @@
           </div>
           <div class="v11-fib-grid" id="v11-fib-grid"></div>
           <div class="v11-fib-settings" id="v11-fib-settings" style="display:none">
+            <div class="v11-fib-set-row">
+              <label>⏱️ Timeframe (สวิง)</label>
+              <select id="v11-timeframe-select" class="login-input" style="margin:0" onchange="setV11Timeframe(this.value)">
+                <option value="1m">1 นาที</option>
+                <option value="5m">5 นาที</option>
+                <option value="15m">15 นาที</option>
+                <option value="30m">30 นาที</option>
+                <option value="1h">1 ชั่วโมง</option>
+                <option value="4h">4 ชั่วโมง</option>
+              </select>
+            </div>
             <div class="v11-fib-set-row">
               <label>ระดับ Fib (%)</label>
               <input type="text" id="v11-fib-levels-input" class="login-input" style="margin:0" placeholder="เช่น 0,23.6,38.2,50,61.8,78.6,100" value="0,23.6,38.2,50,61.8,78.6,100">
@@ -635,8 +646,8 @@
     <div class="chat-lightbox-close" onclick="closeChatLightbox()">✕</div>
   </div>
 
-  <script src="app.js?v=42.0"></script>
-  <script src="v11engine.js?v=42.0"></script>
+  <script src="app.js?v=43.0"></script>
+  <script src="v11engine.js?v=43.0"></script>
 
   <!-- Cloudflare Web Analytics -->
   <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "ed896493cd304caa97cd0809d973c369", "spa": true}'></script>

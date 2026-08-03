@@ -429,10 +429,12 @@ function toggleV11FibSettings() {
     const entry = document.getElementById('v11-fib-entry-input');
     const tp1 = document.getElementById('v11-fib-tp1-input');
     const tp3 = document.getElementById('v11-fib-tp3-input');
+    const tfSel = document.getElementById('v11-timeframe-select');
     if (lvl) lvl.value = V11_CONFIG.fibLevels.join(',');
     if (entry) entry.value = V11_CONFIG.fibEntry;
     if (tp1) tp1.value = V11_CONFIG.fibTp1;
     if (tp3) tp3.value = V11_CONFIG.fibTp3;
+    if (tfSel) tfSel.value = v11Timeframe;
   }
 }
 
@@ -675,14 +677,40 @@ function applySymbolToCharts() {
 // Swing high/low for the V11 engine must come from real OHLC candles
 // (matching the Pine script), not from live tick prices.
 let v11CandleSymbol = '';
+let v11RefreshId = null;
+
+// Timeframe options for the V11 engine (candle interval + Yahoo range)
+const V11_TF_OPTIONS = {
+  '1m': { label: '1 นาที', interval: '1m', range: '1d', refreshMs: 30000 },
+  '5m': { label: '5 นาที', interval: '5m', range: '5d', refreshMs: 60000 },
+  '15m': { label: '15 นาที', interval: '15m', range: '1mo', refreshMs: 90000 },
+  '30m': { label: '30 นาที', interval: '30m', range: '1mo', refreshMs: 120000 },
+  '1h': { label: '1 ชั่วโมง', interval: '60m', range: '3mo', refreshMs: 180000 },
+  '4h': { label: '4 ชั่วโมง', interval: '4h', range: '3mo', refreshMs: 300000 },
+};
+let v11Timeframe = localStorage.getItem('jj_v11_timeframe') || '5m';
+if (!V11_TF_OPTIONS[v11Timeframe]) v11Timeframe = '5m';
+
+function setV11Timeframe(tf) {
+  if (!V11_TF_OPTIONS[tf]) return;
+  v11Timeframe = tf;
+  localStorage.setItem('jj_v11_timeframe', tf);
+  const sel = document.getElementById('v11-timeframe-select');
+  if (sel) sel.value = tf;
+  // Force reload candles for the new interval
+  v11CandleSymbol = '';
+  fetchV11Candles();
+  showToast(`⏱️ เปลี่ยน timeframe ของ V11 เป็น ${V11_TF_OPTIONS[tf].label} แล้วครับ`);
+}
 
 async function fetchV11Candles() {
   const symKey = (SYMBOL_META[currentSymbol] ? currentSymbol.split(':').pop() : 'XAUUSD').toUpperCase();
   const sym = symKey.includes('XAG') ? 'XAG' : symKey.includes('DXY') ? 'DXY' : symKey.includes('USOIL') || symKey.includes('OIL') ? 'USOIL' : symKey.includes('BTC') ? 'BTC' : 'XAU';
   if (v11CandleSymbol === sym) return;
   v11CandleSymbol = sym;
+  const tf = V11_TF_OPTIONS[v11Timeframe] || V11_TF_OPTIONS['5m'];
   try {
-    const res = await fetch(`${API_BASE}/api/candles?symbol=${sym}&interval=5m&range=5d`);
+    const res = await fetch(`${API_BASE}/api/candles?symbol=${sym}&interval=${tf.interval}&range=${tf.range}`);
     if (!res.ok) return;
     const data = await res.json();
     if (Array.isArray(data.candles) && data.candles.length) {
@@ -696,9 +724,11 @@ async function fetchV11Candles() {
 
 function refreshV11Candles() {
   fetchV11Candles();
-  // Refresh every 60s so the swing window rolls forward on the 5m bars
-  const id = setInterval(fetchV11Candles, 60000);
-  intervalIds.push(id);
+  // Refresh cadence follows the selected timeframe
+  if (v11RefreshId) { clearInterval(v11RefreshId); intervalIds = intervalIds.filter(id => id !== v11RefreshId); }
+  const tf = V11_TF_OPTIONS[v11Timeframe] || V11_TF_OPTIONS['5m'];
+  v11RefreshId = setInterval(fetchV11Candles, tf.refreshMs);
+  intervalIds.push(v11RefreshId);
 }
 
 async function loadPreferences() {
