@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;700;800&family=Kanit:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logo.jpg">
-  <link rel="stylesheet" href="styles.css?v=40.0">
+  <link rel="stylesheet" href="styles.css?v=41.0">
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body>
@@ -143,6 +143,7 @@
               <span id="chart-label-0">XAU/USD - 3 นาที</span>
             </div>
             <span class="badge-live">LIVE</span>
+            <button type="button" class="btn-indicator" id="v11-fib-overlay-btn" onclick="toggleV11FibOverlay()" title="แสดง/ซ่อนเส้น Fibonacci Retracement (0%-100%)" style="font-size:11px;padding:2px 8px">📐 Fib: ปิด</button>
           </div>
           <div class="chart-container-sm" id="tv_chart_0"></div>
         </div>
@@ -265,6 +266,34 @@
           <div class="v11-row">
             <span class="v11-label">⚖️ Risk : Reward (TP1 / TP3)</span>
             <span class="v11-value" style="color:var(--gold-primary)" id="v11-val-rr">--</span>
+          </div>
+          <hr class="v11-divider">
+          <div class="v11-fib-header">
+            <span class="v11-label">📐 Fibonacci Retracement (ปรับได้)</span>
+            <button type="button" class="btn-sm" onclick="toggleV11FibSettings()" id="v11-fib-settings-btn" title="ตั้งค่าระดับ Fibonacci">⚙️</button>
+          </div>
+          <div class="v11-fib-grid" id="v11-fib-grid"></div>
+          <div class="v11-fib-settings" id="v11-fib-settings" style="display:none">
+            <div class="v11-fib-set-row">
+              <label>ระดับ Fib (%)</label>
+              <input type="text" id="v11-fib-levels-input" class="login-input" style="margin:0" placeholder="เช่น 0,23.6,38.2,50,61.8,78.6,100" value="0,23.6,38.2,50,61.8,78.6,100">
+            </div>
+            <div class="v11-fib-set-row">
+              <label>Entry (%)</label>
+              <input type="number" id="v11-fib-entry-input" class="login-input" style="margin:0" min="0" max="100" step="0.1" value="78.6">
+            </div>
+            <div class="v11-fib-set-row">
+              <label>TP1 (%)</label>
+              <input type="number" id="v11-fib-tp1-input" class="login-input" style="margin:0" min="0" max="100" step="0.1" value="38.2">
+            </div>
+            <div class="v11-fib-set-row">
+              <label>TP3 (%)</label>
+              <input type="number" id="v11-fib-tp3-input" class="login-input" style="margin:0" min="0" max="100" step="0.1" value="100">
+            </div>
+            <div class="v11-fib-set-actions">
+              <button type="button" class="btn-primary btn-green" style="padding:6px 12px;font-size:12px" onclick="saveV11FibSettings()">💾 บันทึก</button>
+              <button type="button" class="btn-primary" style="padding:6px 12px;font-size:12px;background:rgba(255,255,255,0.06)" onclick="resetV11FibSettings()">↩️ ค่าเริ่มต้น</button>
+            </div>
           </div>
         </div>
       </div>
@@ -582,8 +611,8 @@
     <div class="chat-lightbox-close" onclick="closeChatLightbox()">✕</div>
   </div>
 
-  <script src="app.js?v=40.0"></script>
-  <script src="v11engine.js?v=40.0"></script>
+  <script src="app.js?v=41.0"></script>
+  <script src="v11engine.js?v=41.0"></script>
 
   <!-- Cloudflare Web Analytics -->
   <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "ed896493cd304caa97cd0809d973c369", "spa": true}'></script>

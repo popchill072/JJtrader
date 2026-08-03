@@ -324,6 +324,7 @@ function initApp() {
   try { calculatePivot(); } catch (e) { console.error(e); }
   try { loadNotes(); } catch (e) { console.error(e); }
   try { loadPriceAlerts(); } catch (e) { console.error(e); }
+  try { v11LoadFibSettings(); renderV11FibOverlay(); } catch (e) { console.error(e); }
   try { startLivePriceTicker(); } catch (e) { console.error(e); }
   try { loadForexNews(); } catch (e) { console.error(e); }
   try { requestNotificationPermission(); } catch (e) {}
@@ -402,6 +403,127 @@ function promptCustomIndicator() {
   if (input !== null) {
     setCustomIndicator(input);
   }
+}
+
+// ── V11 FIBONACCI SETTINGS ─────────────────────────────
+const V11_FIB_STORAGE_KEY = 'jj_v11_fib_config';
+let v11FibOverlayEnabled = localStorage.getItem('jj_v11_fib_overlay') === '1';
+
+function v11LoadFibSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(V11_FIB_STORAGE_KEY) || 'null');
+    if (saved && Array.isArray(saved.levels)) {
+      v11SetFibLevels(saved.levels, saved.entry, saved.tp1, saved.tp3);
+    }
+  } catch (e) {}
+}
+
+function toggleV11FibSettings() {
+  const panel = document.getElementById('v11-fib-settings');
+  const btn = document.getElementById('v11-fib-settings-btn');
+  if (!panel) return;
+  const willOpen = panel.style.display !== 'block';
+  panel.style.display = willOpen ? 'block' : 'none';
+  if (willOpen) {
+    const lvl = document.getElementById('v11-fib-levels-input');
+    const entry = document.getElementById('v11-fib-entry-input');
+    const tp1 = document.getElementById('v11-fib-tp1-input');
+    const tp3 = document.getElementById('v11-fib-tp3-input');
+    if (lvl) lvl.value = V11_CONFIG.fibLevels.join(',');
+    if (entry) entry.value = V11_CONFIG.fibEntry;
+    if (tp1) tp1.value = V11_CONFIG.fibTp1;
+    if (tp3) tp3.value = V11_CONFIG.fibTp3;
+  }
+}
+
+function saveV11FibSettings() {
+  const lvl = document.getElementById('v11-fib-levels-input');
+  const entry = document.getElementById('v11-fib-entry-input');
+  const tp1 = document.getElementById('v11-fib-tp1-input');
+  const tp3 = document.getElementById('v11-fib-tp3-input');
+  const raw = (lvl ? lvl.value : '').split(',').map(s => parseFloat(s)).filter(n => Number.isFinite(n) && n >= 0 && n <= 100);
+  const e = parseFloat(entry ? entry.value : 78.6);
+  const t1 = parseFloat(tp1 ? tp1.value : 38.2);
+  const t3 = parseFloat(tp3 ? tp3.value : 100);
+  if (!raw.length) {
+    showToast('❌ กรุณากรอกรายการระดับ Fib ให้ถูกต้อง (ตัวเลขคั่นด้วย ,)');
+    return;
+  }
+  const levels = v11SetFibLevels(raw, e, t1, t3);
+  localStorage.setItem(V11_FIB_STORAGE_KEY, JSON.stringify({ levels, entry: V11_CONFIG.fibEntry, tp1: V11_CONFIG.fibTp1, tp3: V11_CONFIG.fibTp3 }));
+  renderV11FibOverlay();
+  const last = lastKnownLivePrice || parseFloat(document.getElementById('gold-spot-input')?.value) || 0;
+  updateV11ProDashboard(last);
+  const panel = document.getElementById('v11-fib-settings');
+  if (panel) panel.style.display = 'none';
+  showToast(`✅ ตั้งค่า Fibonacci เรียบร้อย: ${levels.join(', ')}%`);
+}
+
+function resetV11FibSettings() {
+  localStorage.removeItem(V11_FIB_STORAGE_KEY);
+  v11SetFibLevels([0, 23.6, 38.2, 50, 61.8, 78.6, 100], 78.6, 38.2, 100);
+  const panel = document.getElementById('v11-fib-settings');
+  if (panel) panel.style.display = 'none';
+  renderV11FibOverlay();
+  const last = lastKnownLivePrice || parseFloat(document.getElementById('gold-spot-input')?.value) || 0;
+  updateV11ProDashboard(last);
+  showToast('↩️ คืนค่า Fibonacci กลับเป็นค่าเริ่มต้นแล้วครับ');
+}
+
+// ── FIB OVERLAY ON TRADINGVIEW CHART ───────────────────
+// Draw a retracement frame (0%-100%) over the main chart container.
+// Uses a transparent overlay div positioned by swing high/low range.
+function toggleV11FibOverlay() {
+  v11FibOverlayEnabled = !v11FibOverlayEnabled;
+  localStorage.setItem('jj_v11_fib_overlay', v11FibOverlayEnabled ? '1' : '0');
+  renderV11FibOverlay();
+  const btn = document.getElementById('v11-fib-overlay-btn');
+  if (btn) {
+    btn.textContent = v11FibOverlayEnabled ? '📐 Fib: เปิด' : '📐 Fib: ปิด';
+    btn.classList.toggle('active', v11FibOverlayEnabled);
+  }
+  showToast(v11FibOverlayEnabled ? '📐 แสดงเส้น Fibonacci บนกราฟแล้ว' : '📐 ปิดเส้น Fibonacci บนกราฟแล้ว');
+}
+
+function renderV11FibOverlay() {
+  document.querySelectorAll('.v11-fib-overlay').forEach(el => el.remove());
+  if (!v11FibOverlayEnabled) return;
+  if (!v11Swing || v11Swing.sRange <= 0) return;
+  const container = document.getElementById('tv_chart_0');
+  if (!container) return;
+
+  const { dHigh, dLow, sRange, isUp } = v11Swing;
+  const overlay = document.createElement('div');
+  overlay.className = 'v11-fib-overlay';
+  overlay.style.position = 'absolute';
+  overlay.style.inset = '0';
+  overlay.style.pointerEvents = 'none';
+  overlay.style.zIndex = '5';
+
+  // Horizontal lines at each fib level (y = level retracement from high->low)
+  const levels = V11_CONFIG.fibLevels.slice();
+  levels.forEach(pct => {
+    const price = isUp === false ? dLow + sRange * (pct / 100) : dHigh - sRange * (pct / 100);
+    const y = ((dHigh - price) / sRange) * 100;
+    const isEntry = Math.abs(pct - V11_CONFIG.fibEntry) < 0.05;
+    const line = document.createElement('div');
+    line.className = 'v11-fib-line';
+    line.style.position = 'absolute';
+    line.style.left = '0';
+    line.style.right = '0';
+    line.style.top = y + '%';
+    line.style.height = '1px';
+    line.style.background = isEntry ? 'rgba(41,98,255,0.9)' : 'rgba(255,215,0,0.45)';
+    line.style.borderTop = isEntry ? '1px dashed #2962FF' : '1px dashed rgba(255,215,0,0.5)';
+    const lbl = document.createElement('span');
+    lbl.textContent = pct + '%';
+    lbl.style.cssText = 'position:absolute;right:4px;top:-7px;font-size:9px;font-weight:700;color:' + (isEntry ? '#2962FF' : '#ffd700') + ';background:rgba(8,10,15,0.8);padding:0 3px;border-radius:3px';
+    line.appendChild(lbl);
+    overlay.appendChild(line);
+  });
+
+  container.style.position = 'relative';
+  container.appendChild(overlay);
 }
 
 function renderTechnicalGauge() {
@@ -1109,6 +1231,8 @@ async function fetchLiveAssetPrice() {
 
       // Update V11 PRO Engine on every tick
       try { updateV11ProDashboard(livePrice); } catch(e) {}
+      // Keep fib overlay frame in sync with the latest swing high/low
+      try { renderV11FibOverlay(); } catch(e) {}
     }
   } catch (e) {}
   // Also evaluate alerts for other assets (each fetches its own live price)

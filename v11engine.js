@@ -2,9 +2,16 @@
 // Translated from Pine Script "JJ TRADER V11 PRO" to JavaScript
 // Swing High/Low Lookback -> Fibonacci Zones -> EMA Trend Filter -> Status Detection
 
-const V11_CONFIG = { lookback: 30, emaFast: 21, emaSlow: 89, slPercent: 10.0, atrLength: 14, atrMult: 1.5 };
+const V11_CONFIG = {
+  lookback: 30, emaFast: 21, emaSlow: 89, slPercent: 10.0, atrLength: 14, atrMult: 1.5,
+  fibLevels: [0, 23.6, 38.2, 50, 61.8, 78.6, 100],
+  fibEntry: 78.6, fibTp1: 38.2, fibTp3: 100,
+};
 let v11PriceHistory = [];
 const V11_MAX_HISTORY = 200;
+
+// Latest swing reference exposed for the TradingView overlay
+let v11Swing = null;
 
 function v11AddPriceTick(price) {
   v11PriceHistory.push(price);
@@ -49,6 +56,7 @@ function updateV11ProDashboard(livePrice) {
   const dLow = Math.min(...recentPrices);
   const sRange = dHigh - dLow;
   if (sRange <= 0) return;
+  v11Swing = { dHigh, dLow, sRange, isUp: null };
 
   // Trend detection: which came first - high or low?
   let hAge = 0, lAge = 0;
@@ -57,6 +65,7 @@ function updateV11ProDashboard(livePrice) {
     if (recentPrices[i] === dLow && lAge === 0) lAge = recentPrices.length - 1 - i;
   }
   const isUp = lAge > hAge;
+  if (v11Swing) v11Swing.isUp = isUp;
 
   // EMA Filter
   const emaFast = v11CalcEMA(hist, V11_CONFIG.emaFast);
@@ -66,9 +75,10 @@ function updateV11ProDashboard(livePrice) {
   // ATR
   const atrVal = v11CalcATR(hist, V11_CONFIG.atrLength);
 
-  // Fibonacci Levels
-  const fib382 = isUp ? dHigh - sRange * 0.382 : dLow + sRange * 0.382;
-  const fib786 = isUp ? dHigh - sRange * 0.786 : dLow + sRange * 0.786;
+  // Fibonacci Levels (from configurable levels list, retracement from the swing)
+  const fibOf = (pct) => isUp ? dHigh - sRange * (pct / 100) : dLow + sRange * (pct / 100);
+  const fibLevelPrices = {};
+  V11_CONFIG.fibLevels.forEach(pct => { fibLevelPrices[pct] = fibOf(pct); });
 
   // Zones (from Pine Script)
   const z1Hi = isUp ? dHigh - sRange * 0.618 : dLow + sRange * 0.700;
@@ -78,10 +88,10 @@ function updateV11ProDashboard(livePrice) {
   const z3Hi = isUp ? dHigh - sRange * 0.950 : dLow + sRange * 1.000;
   const z3Lo = isUp ? dHigh - sRange * 1.000 : dLow + sRange * 0.950;
 
-  // Entry / TP / SL
-  const entryR = fib786;
-  const tp1 = fib382;
-  const tp3 = isUp ? dHigh : dLow;
+  // Entry / TP / SL (entry & TP levels user-configurable)
+  const entryR = fibOf(V11_CONFIG.fibEntry);
+  const tp1 = fibOf(V11_CONFIG.fibTp1);
+  const tp3 = fibOf(V11_CONFIG.fibTp3);
   const slP = isUp
     ? dLow - sRange * (V11_CONFIG.slPercent / 100)
     : dHigh + sRange * (V11_CONFIG.slPercent / 100);
@@ -130,4 +140,38 @@ function updateV11ProDashboard(livePrice) {
     rrEl.textContent = '1:' + rr1.toFixed(2) + ' (TP1) | 1:' + rr3.toFixed(2) + ' (TP3)';
     rrEl.style.color = rr1 >= 1.5 ? 'var(--accent-green)' : rr1 >= 1.0 ? 'var(--gold-primary)' : 'var(--accent-red)';
   }
+
+  // Fib level table (full set 0%-100%, user-configurable)
+  const fibGrid = document.getElementById('v11-fib-grid');
+  if (fibGrid) {
+    fibGrid.innerHTML = V11_CONFIG.fibLevels.map(pct => {
+      const price = fibLevelPrices[pct];
+      const isEntry = Math.abs(pct - V11_CONFIG.fibEntry) < 0.05;
+      const isTp = Math.abs(pct - V11_CONFIG.fibTp1) < 0.05;
+      const color = isEntry ? 'var(--accent-cyan)' : isTp ? 'var(--gold-light)' : 'var(--text-muted)';
+      const tag = isEntry ? ' 🟢' : isTp ? ' 🎯' : '';
+      return `<div class="v11-fib-cell" style="color:${color}">
+        <span class="v11-fib-pct">${pct}%${tag}</span>
+        <span class="v11-fib-price">$${price.toFixed(2)}</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+// Apply user-customized Fibonacci levels (list of percentages 0-100)
+function v11SetFibLevels(pcts, entryPct, tp1Pct, tp3Pct) {
+  const norm = (v, fb) => {
+    const n = parseFloat(v);
+    return (Number.isFinite(n) && n >= 0 && n <= 100) ? n : fb;
+  };
+  let list = Array.isArray(pcts) ? pcts.map(p => norm(p, null)).filter(v => v !== null) : null;
+  if (!list || !list.length) list = [0, 23.6, 38.2, 50, 61.8, 78.6, 100];
+  // Ensure 0% and 100% are present (needed for the retracement frame)
+  if (!list.includes(0)) list.unshift(0);
+  if (!list.includes(100)) list.push(100);
+  V11_CONFIG.fibLevels = [...new Set(list)].sort((a, b) => a - b);
+  V11_CONFIG.fibEntry = norm(entryPct, V11_CONFIG.fibEntry);
+  V11_CONFIG.fibTp1 = norm(tp1Pct, V11_CONFIG.fibTp1);
+  V11_CONFIG.fibTp3 = norm(tp3Pct, V11_CONFIG.fibTp3);
+  return V11_CONFIG.fibLevels;
 }

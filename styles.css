@@ -661,6 +661,39 @@ body {
   padding-top: 4px; margin-top: 2px;
 }
 
+.v11-fib-header {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+}
+
+.v11-fib-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 6px;
+}
+
+.v11-fib-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 3px 2px; border-radius: 4px; background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border-subtle);
+}
+
+.v11-fib-pct { font-size: 9px; font-weight: 700; }
+.v11-fib-price { font-size: 9px; opacity: 0.85; }
+
+.v11-fib-settings {
+  margin-top: 8px; padding: 8px; border-radius: 6px;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle);
+}
+
+.v11-fib-set-row {
+  display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px;
+}
+
+.v11-fib-set-row label { font-size: 10px; color: var(--text-muted); }
+.v11-fib-set-row input { font-size: 12px; padding: 6px 8px; }
+
+.v11-fib-set-actions {
+  display: flex; gap: 8px; justify-content: flex-end;
+}
+
 /* ── SESSION CLOCK ── */
 .sessions-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
