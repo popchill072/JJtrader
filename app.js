@@ -227,6 +227,11 @@ async function handleRegisterSubmit() {
     return;
   }
 
+  if (pin.length > 6 || !/^\d+$/.test(pin)) {
+    if (errEl) { errEl.textContent = '❌ PIN ต้องเป็นตัวเลข 4-6 หลักเท่านั้น (เช่น 123456)'; errEl.classList.add('show'); }
+    return;
+  }
+
   if (!pinConfirm) {
     if (errEl) { errEl.textContent = '❌ กรุณายืนยัน PIN อีกครั้งในช่อง "ยืนยัน PIN"'; errEl.classList.add('show'); }
     return;
