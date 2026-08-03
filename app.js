@@ -324,7 +324,7 @@ function initApp() {
   try { calculatePivot(); } catch (e) { console.error(e); }
   try { loadNotes(); } catch (e) { console.error(e); }
   try { loadPriceAlerts(); } catch (e) { console.error(e); }
-  try { v11LoadFibSettings(); renderV11FibOverlay(); } catch (e) { console.error(e); }
+  try { v11LoadFibSettings(); refreshV11Candles(); renderV11FibOverlay(); } catch (e) { console.error(e); }
   try { startLivePriceTicker(); } catch (e) { console.error(e); }
   try { loadForexNews(); } catch (e) { console.error(e); }
   try { requestNotificationPermission(); } catch (e) {}
@@ -562,6 +562,10 @@ function changeSymbol(symbol, title, btnElement) {
   savePreferences();
   renderMainChart();
   renderTechnicalGauge();
+
+  // Reload V11 candles for the new asset so swing/EMA are computed on fresh bars
+  v11CandleSymbol = '';
+  refreshV11Candles();
 }
 
 const CHART_PRESETS = {
@@ -665,6 +669,36 @@ function applySymbolToCharts() {
     const onclick = btn.getAttribute('onclick') || '';
     if (onclick.includes(currentSymbol)) btn.classList.add('active');
   });
+}
+
+// ── V11 CANDLE DATA ────────────────────────────────────
+// Swing high/low for the V11 engine must come from real OHLC candles
+// (matching the Pine script), not from live tick prices.
+let v11CandleSymbol = '';
+
+async function fetchV11Candles() {
+  const symKey = (SYMBOL_META[currentSymbol] ? currentSymbol.split(':').pop() : 'XAUUSD').toUpperCase();
+  const sym = symKey.includes('XAG') ? 'XAG' : symKey.includes('DXY') ? 'DXY' : symKey.includes('USOIL') || symKey.includes('OIL') ? 'USOIL' : symKey.includes('BTC') ? 'BTC' : 'XAU';
+  if (v11CandleSymbol === sym) return;
+  v11CandleSymbol = sym;
+  try {
+    const res = await fetch(`${API_BASE}/api/candles?symbol=${sym}&interval=5m&range=5d`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (Array.isArray(data.candles) && data.candles.length) {
+      v11SetCandles(data.candles);
+      const last = lastKnownLivePrice || parseFloat(document.getElementById('gold-spot-input')?.value) || 0;
+      if (last) updateV11ProDashboard(last);
+      renderV11FibOverlay();
+    }
+  } catch (e) {}
+}
+
+function refreshV11Candles() {
+  fetchV11Candles();
+  // Refresh every 60s so the swing window rolls forward on the 5m bars
+  const id = setInterval(fetchV11Candles, 60000);
+  intervalIds.push(id);
 }
 
 async function loadPreferences() {

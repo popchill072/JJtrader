@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;700;800&family=Kanit:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logo.jpg">
-  <link rel="stylesheet" href="styles.css?v=41.0">
+  <link rel="stylesheet" href="styles.css?v=42.0">
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body>
@@ -243,6 +243,10 @@
             <div class="v11-stat-label">เทรนด์ (Trend)</div>
             <div class="v11-stat-value" id="v11-trend-badge" style="color:var(--text-muted)">⏳ กำลังรอข้อมูล...</div>
           </div>
+          <div class="v11-stat" style="grid-column:1/-1">
+            <div class="v11-stat-label">สัญญาณ (Signal)</div>
+            <div class="v11-stat-value" id="v11-signal-badge" style="color:var(--text-muted);font-size:15px">⏸️ WAIT</div>
+          </div>
         </div>
 
         <div class="v11-details" style="margin-top:8px">
@@ -255,6 +259,10 @@
             <span class="v11-value" style="color:var(--gold-light)" id="v11-val-tp1">--</span>
           </div>
           <div class="v11-row">
+            <span class="v11-label">🎯 TP2 (Fib 23.6%)</span>
+            <span class="v11-value" style="color:var(--gold-light)" id="v11-val-tp2">--</span>
+          </div>
+          <div class="v11-row">
             <span class="v11-label">🏆 TP3 (Swing High/Low)</span>
             <span class="v11-value" style="color:var(--accent-green)" id="v11-val-tp3">--</span>
           </div>
@@ -262,10 +270,26 @@
             <span class="v11-label">🛑 STOP LOSS (SL)</span>
             <span class="v11-value" style="color:var(--accent-red)" id="v11-val-sl">--</span>
           </div>
+          <div class="v11-row">
+            <span class="v11-label">🚀 EXT 161.8%</span>
+            <span class="v11-value" style="color:var(--accent-orange,#FF6D00)" id="v11-val-ext161">--</span>
+          </div>
           <hr class="v11-divider">
           <div class="v11-row">
             <span class="v11-label">⚖️ Risk : Reward (TP1 / TP3)</span>
             <span class="v11-value" style="color:var(--gold-primary)" id="v11-val-rr">--</span>
+          </div>
+          <div class="v11-row">
+            <span class="v11-label">📡 LIVE PRICE</span>
+            <span class="v11-value" id="v11-val-live">--</span>
+          </div>
+          <div class="v11-row">
+            <span class="v11-label">📊 ATR (14)</span>
+            <span class="v11-value" id="v11-val-atr">--</span>
+          </div>
+          <div class="v11-row">
+            <span class="v11-label">📏 SWING RANGE</span>
+            <span class="v11-value" id="v11-val-range">--</span>
           </div>
           <hr class="v11-divider">
           <div class="v11-fib-header">
@@ -611,8 +635,8 @@
     <div class="chat-lightbox-close" onclick="closeChatLightbox()">✕</div>
   </div>
 
-  <script src="app.js?v=41.0"></script>
-  <script src="v11engine.js?v=41.0"></script>
+  <script src="app.js?v=42.0"></script>
+  <script src="v11engine.js?v=42.0"></script>
 
   <!-- Cloudflare Web Analytics -->
   <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "ed896493cd304caa97cd0809d973c369", "spa": true}'></script>

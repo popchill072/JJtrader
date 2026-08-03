@@ -362,6 +362,47 @@ export default {
         }
       }
 
+      // ── CANDLES PROXY (OHLC for the V11 engine swing detection) ──
+      // Returns recent candles so swing high/low are computed on real bars,
+      // not on live tick prices like the old implementation.
+      if (path === '/api/candles' && method === 'GET') {
+        const sym = (url.searchParams.get('symbol') || 'XAU').toUpperCase();
+        const interval = url.searchParams.get('interval') || '5m';
+        const range = url.searchParams.get('range') || '5d';
+        const yahooSymbol = sym === 'DXY' ? 'DX-Y.NYB'
+          : (sym === 'USOIL' || sym === 'OIL' ? 'CL=F'
+          : (sym === 'XAU' || sym === 'XAUUSD' || sym === 'GOLD' ? 'GC=F'
+          : (sym === 'XAG' || sym === 'XAGUSD' || sym === 'SILVER' ? 'SI=F'
+          : (sym === 'BTC' || sym === 'BTCUSDT' ? 'BTC-USD' : null))));
+        if (!yahooSymbol) return fail('symbol ไม่ถูกต้อง (ใช้ DXY, USOIL, XAU, XAG, BTC)', 400);
+        try {
+          const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=${encodeURIComponent(interval)}&range=${encodeURIComponent(range)}`, {
+            headers: { 'User-Agent': TV_UA, 'Accept': 'application/json' },
+          });
+          if (!res.ok) return fail('ไม่สามารถดึงข้อมูลกราฟได้ กรุณาลองใหม่', 502);
+          const body = await res.json();
+          const result = body?.chart?.result?.[0];
+          const times = result?.timestamp || [];
+          const quote = result?.indicators?.quote?.[0];
+          if (!times.length || !quote) return fail('ไม่สามารถดึงข้อมูลกราฟได้ กรุณาลองใหม่', 502);
+
+          const candles = [];
+          for (let i = 0; i < times.length; i++) {
+            const o = quote.open && quote.open[i];
+            const h = quote.high && quote.high[i];
+            const l = quote.low && quote.low[i];
+            const c = quote.close && quote.close[i];
+            if (o == null || h == null || l == null || c == null) continue;
+            candles.push({ t: times[i], o, h, l, c });
+          }
+          if (!candles.length) return fail('ไม่สามารถดึงข้อมูลกราฟได้ กรุณาลองใหม่', 502);
+          // Keep the last 250 candles for swing/EMA computations
+          return respond({ symbol: sym, interval, candles: candles.slice(-250) });
+        } catch (e) {
+          return fail('ไม่สามารถดึงข้อมูลกราฟได้ กรุณาลองใหม่', 502);
+        }
+      }
+
       // ── FOREXFACTORY NEWS API ─────────────────────────
       if (path === '/api/news' && method === 'GET') {
         const period = url.searchParams.get('period') || 'thisweek';
