@@ -1506,6 +1506,7 @@ let chatSoundEnabled = (localStorage.getItem('jj_chat_sound') || 'on') === 'on';
 let chatSoundType = localStorage.getItem('jj_chat_sound_type') || 'ding';
 let chatDisplayName = null;
 let chatAvatar = null;
+let chatUserId = null;
 const BASE_PAGE_TITLE = document.title;
 
 const CHAT_SOUNDS = {
@@ -1624,6 +1625,7 @@ async function loadChatProfile() {
       if (data && !data.isGuest && !data.error) {
         chatDisplayName = data.display_name || null;
         chatAvatar = data.avatar || null;
+        chatUserId = data.user_id || null;
       }
     } catch (e) {}
   } else {
@@ -1858,7 +1860,7 @@ async function fetchChatMessages() {
           updateChatUnreadBadge();
           if (chatSoundEnabled) playChatNewMessageSound();
           if (document.hidden || document.visibilityState !== 'visible') {
-            notifyChatUnread(latest.username, latest.message);
+            notifyChatUnread(latest.display_name || latest.username, latest.message);
           }
         }
       }
@@ -1883,10 +1885,11 @@ function renderChatMessages() {
   }
   const shouldScroll = container.scrollTop + container.clientHeight >= container.scrollHeight - 40;
   container.innerHTML = '';
-  const myUsername = currentUsername || 'Guest Trader';
   chatMessageCache.forEach(msg => {
     const item = document.createElement('div');
-    const isMine = (msg.display_name || msg.username) === myUsername;
+    const isMine = msg.user_id
+      ? (chatUserId && msg.user_id === chatUserId)
+      : (msg.username === currentUsername);
     item.className = 'chat-msg' + (isMine ? ' mine' : '');
     const showName = msg.display_name || msg.username || '?';
     let body = '';
@@ -1995,7 +1998,10 @@ async function sendChatMessage() {
       if (res.id > chatLastId) {
         chatMessageCache.push({
           id: res.id,
-          username: res.username || currentUsername,
+          user_id: chatUserId || null,
+          username: currentUsername,
+          display_name: chatIdentityName(),
+          avatar: chatAvatar,
           message: text,
           image: sentImage || null,
           created_at: res.created_at || new Date().toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })
@@ -2027,9 +2033,12 @@ function closeChatLightbox() {
   document.body.style.overflow = '';
 }
 
-// ESC closes lightbox
+// ESC closes lightbox / profile modal
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeChatLightbox();
+  if (e.key === 'Escape') {
+    closeChatLightbox();
+    closeChatProfileSettings();
+  }
 });
 
 // Enter key sends chat

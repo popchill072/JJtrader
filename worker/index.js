@@ -721,6 +721,7 @@ export default {
       // GET /api/profile
       if (path === '/api/profile' && method === 'GET') {
         return respond({
+          user_id: user.id,
           username: user.username,
           display_name: user.display_name || null,
           avatar: user.avatar || null,
@@ -762,7 +763,7 @@ export default {
       if (path === '/api/chat' && method === 'GET') {
         const after = parseInt(url.searchParams.get('after') || '0', 10) || 0;
         const { results } = await DB.prepare(
-          `SELECT m.id, m.username, COALESCE(u.display_name, m.username) AS display_name, u.avatar AS avatar,
+          `SELECT m.id, m.user_id, m.username, COALESCE(u.display_name, m.username) AS display_name, u.avatar AS avatar,
                   m.message, m.image, m.created_at
            FROM chat_messages m
            LEFT JOIN users u ON u.id = m.user_id
