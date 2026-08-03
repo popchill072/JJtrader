@@ -703,6 +703,13 @@ function setV11Timeframe(tf) {
   showToast(`⏱️ เปลี่ยน timeframe ของ V11 เป็น ${V11_TF_OPTIONS[tf].label} แล้วครับ`);
 }
 
+// Binance spot klines are close to real spot price (PAXG tracks XAU spot within ~$1-3),
+// unlike Yahoo GC=F futures which run ~$50-60 above spot.
+const V11_BINANCE_PAIRS = {
+  'XAU': { pair: 'PAXGUSDT', limit: 250 },
+  'BTC': { pair: 'BTCUSDT', limit: 250 },
+};
+
 async function fetchV11Candles() {
   const symKey = (SYMBOL_META[currentSymbol] ? currentSymbol.split(':').pop() : 'XAUUSD').toUpperCase();
   const sym = symKey.includes('XAG') ? 'XAG' : symKey.includes('DXY') ? 'DXY' : symKey.includes('USOIL') || symKey.includes('OIL') ? 'USOIL' : symKey.includes('BTC') ? 'BTC' : 'XAU';
@@ -710,11 +717,26 @@ async function fetchV11Candles() {
   v11CandleSymbol = sym;
   const tf = V11_TF_OPTIONS[v11Timeframe] || V11_TF_OPTIONS['5m'];
   try {
-    const res = await fetch(`${API_BASE}/api/candles?symbol=${sym}&interval=${tf.interval}&range=${tf.range}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    if (Array.isArray(data.candles) && data.candles.length) {
-      v11SetCandles(data.candles);
+    let candles = null;
+    const binance = V11_BINANCE_PAIRS[sym];
+    if (binance) {
+      // Binance klines: [[openTime, open, high, low, close, ...], ...]
+      const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${binance.pair}&interval=${tf.interval}&limit=${binance.limit}`);
+      if (res.ok) {
+        const k = await res.json();
+        if (Array.isArray(k) && k.length) {
+          candles = k.map(row => ({ t: Math.floor(row[0] / 1000), o: parseFloat(row[1]), h: parseFloat(row[2]), l: parseFloat(row[3]), c: parseFloat(row[4]) }));
+        }
+      }
+    }
+    if (!candles) {
+      const res = await fetch(`${API_BASE}/api/candles?symbol=${sym}&interval=${tf.interval}&range=${tf.range}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      candles = Array.isArray(data.candles) ? data.candles : null;
+    }
+    if (candles && candles.length) {
+      v11SetCandles(candles);
       const last = lastKnownLivePrice || parseFloat(document.getElementById('gold-spot-input')?.value) || 0;
       if (last) updateV11ProDashboard(last);
       renderV11FibOverlay();
