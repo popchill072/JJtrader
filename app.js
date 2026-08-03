@@ -329,6 +329,7 @@ function initApp() {
     intervalIds.push(clockId);
   } catch (e) { console.error(e); }
   try { loadTradeLogs().catch(e => console.error(e)); } catch (e) { console.error(e); }
+  try { startChatPolling(); } catch (e) { console.error(e); }
   try {
     const initPrice = lastKnownLivePrice || parseFloat(document.getElementById('gold-spot-input')?.value) || 0;
     calculateV11ProEngine(initPrice);
@@ -1244,6 +1245,7 @@ function escapeJs(str) {
 let chatPollingInterval = null;
 let chatLastId = 0;
 let chatMessageCache = [];
+let chatInitialSyncDone = false;
 let chatPendingImage = null;
 let chatWindowOpen = false;
 let chatUnreadCount = 0;
@@ -1442,6 +1444,13 @@ async function fetchChatMessages() {
       if (Array.isArray(data) && data.length) {
         chatMessageCache = chatMessageCache.concat(data).slice(-200);
         chatLastId = data[data.length - 1].id;
+        // First sync after page load: only fast-forward the last-read id so
+        // historical messages are NOT counted as unread.
+        if (!chatInitialSyncDone) {
+          chatInitialSyncDone = true;
+          if (chatWindowOpen) renderChatMessages();
+          return;
+        }
         if (chatWindowOpen) {
           renderChatMessages();
         } else {
