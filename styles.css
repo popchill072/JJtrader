@@ -986,21 +986,40 @@ select.calc-input {
 }
 
 /* ── NEWS ── */
-.news-item {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  margin-bottom: 6px;
-  display: flex; flex-direction: column; gap: 4px;
+.news-card {
+  background: var(--bg-card-gradient);
+  border: 1px solid var(--border-gold-active);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  box-shadow: 0 0 0 1px rgba(255,215,0,0.06), var(--shadow-card);
+}
+
+.news-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-gold);
 }
 
 .news-header {
   display: flex; justify-content: space-between; align-items: center;
 }
 
+.news-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+  display: flex; flex-direction: column; gap: 5px;
+}
+
 .news-title {
-  font-weight: 700; font-size: 13px;
+  font-weight: 700; font-size: 14px;
   color: var(--gold-light);
 }
 
