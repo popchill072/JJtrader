@@ -11,6 +11,11 @@
   --bg-chip: rgba(255, 255, 255, 0.05);
   --bg-chip-border: rgba(255, 255, 255, 0.08);
   --bg-soft: rgba(255, 255, 255, 0.04);
+  --header-bg: linear-gradient(180deg, rgba(16, 20, 30, 0.95), rgba(10, 13, 20, 0.95));
+  --toolbar-bg: rgba(10, 13, 20, 0.6);
+  --input-text: #fff;
+  --overlay-btn-bg: rgba(255, 255, 255, 0.12);
+  --brand-gradient: linear-gradient(135deg, #fff2a3 0%, #ffd700 50%, #cca010 100%);
   --border-subtle: rgba(255, 255, 255, 0.06);
   --border-gold: rgba(212, 175, 55, 0.2);
   --border-gold-active: rgba(255, 215, 0, 0.5);
@@ -57,19 +62,24 @@ html[data-theme="light"] {
   --bg-chip: rgba(20, 35, 60, 0.05);
   --bg-chip-border: rgba(20, 35, 60, 0.08);
   --bg-soft: rgba(20, 35, 60, 0.04);
+  --header-bg: linear-gradient(180deg, #f8fafd 0%, #eef1f6 100%);
+  --toolbar-bg: rgba(240, 243, 248, 0.85);
+  --input-text: #17202e;
+  --overlay-btn-bg: rgba(20, 35, 60, 0.18);
+  --brand-gradient: linear-gradient(135deg, #5a4500 0%, #8a6a00 50%, #b8860b 100%);
   --border-subtle: rgba(15, 25, 45, 0.1);
   --border-gold: rgba(184, 134, 11, 0.3);
   --border-gold-active: rgba(160, 120, 0, 0.55);
 
   --gold-primary: #b8860b;
-  --gold-light: #7a5c00;
+  --gold-light: #6b4d00;
   --gold-dark: #8a6d1a;
   --gold-gradient: linear-gradient(135deg, #e6b800 0%, #c99a12 50%, #9c7c10 100%);
 
   --text-main: #17202e;
-  --text-secondary: #44546a;
-  --text-muted: #7a8699;
-  --text-gold: #a67c00;
+  --text-secondary: #33455e;
+  --text-muted: #5a6474;
+  --text-gold: #8a6a00;
 
   --accent-green: #00875a;
   --accent-red: #e03e2f;
@@ -168,7 +178,7 @@ html[data-theme="light"] body::before {
   font-family: var(--font-heading);
   font-size: 24px; font-weight: 800;
   letter-spacing: 2px;
-  background: linear-gradient(135deg, #fff2a3 0%, #ffd700 50%, #cca010 100%);
+  background: var(--brand-gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 4px;
@@ -213,7 +223,7 @@ html[data-theme="light"] body::before {
   border: 1px solid var(--border-gold);
   border-radius: 12px;
   padding: 14px 16px;
-  color: #fff;
+  color: var(--input-text);
   font-size: 14px;
   font-family: var(--font-main);
   outline: none;
@@ -332,7 +342,7 @@ html[data-theme="light"] body::before {
   display: flex; align-items: center;
   justify-content: space-between;
   padding: 10px 24px;
-  background: linear-gradient(180deg, rgba(16,20,30,0.95), rgba(10,13,20,0.95));
+  background: var(--header-bg);
   border-bottom: 1px solid var(--border-gold);
 }
 
@@ -417,7 +427,7 @@ html[data-theme="light"] body::before {
   display: flex; align-items: center;
   justify-content: space-between;
   padding: 8px 24px;
-  background: rgba(10,13,20,0.6);
+  background: var(--toolbar-bg);
   border-bottom: 1px solid var(--border-subtle);
   flex-wrap: wrap; gap: 8px;
 }
@@ -909,7 +919,7 @@ html[data-theme="light"] body::before {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xs);
   padding: 10px 12px;
-  color: #fff;
+  color: var(--input-text);
   font-size: 13px; font-weight: 600;
   outline: none;
   transition: var(--transition-fast);
@@ -1175,7 +1185,7 @@ select.calc-input {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 12px;
-  color: #fff;
+  color: var(--input-text);
   font-size: 13px;
   font-family: var(--font-main);
   outline: none;
@@ -1254,7 +1264,7 @@ select.calc-input {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
-  color: #fff;
+  color: var(--input-text);
   font-size: 13px;
   font-family: var(--font-main);
   outline: none;
@@ -1485,8 +1495,8 @@ select.calc-input {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.12);
-  color: #fff;
+  background: var(--overlay-btn-bg);
+  color: var(--input-text);
   font-size: 18px;
   display: flex;
   align-items: center;
