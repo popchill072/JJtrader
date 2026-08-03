@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;700;800&family=Kanit:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logo.jpg">
-  <link rel="stylesheet" href="styles.css?v=48.0">
+  <link rel="stylesheet" href="styles.css?v=49.0">
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body>
@@ -234,6 +234,7 @@
             <span>JJ TRADER V11 PRO ENGINE</span>
           </div>
           <span class="badge-live" style="color:var(--gold-light);font-size:9px;background:rgba(255,215,0,0.1);padding:2px 8px;border-radius:4px;border:1px solid var(--border-gold)">ALGO SIGNAL</span>
+          <button type="button" class="btn-indicator" onclick="shareV11Signal()" title="ส่งสัญญาณ V11 ปัจจุบันไปที่แชททีม" style="font-size:11px;padding:2px 8px">📤 แชร์สัญญาณ</button>
         </div>
 
         <div class="v11-grid">
@@ -345,6 +346,7 @@
           <button class="tool-tab-btn" onclick="switchToolTab('tab-pivot', this)">📍 Pivot</button>
           <button class="tool-tab-btn" onclick="switchToolTab('tab-alert', this)">🔔 Alert</button>
           <button class="tool-tab-btn" onclick="switchToolTab('tab-trade-log', this); loadTradeLogs();">📊 Trade Log</button>
+          <button class="tool-tab-btn" onclick="switchToolTab('tab-dashboard', this); renderTradeDashboard();">📈 Dashboard</button>
           <button class="tool-tab-btn" onclick="switchToolTab('tab-journal', this)">📝 Journal</button>
         </div>
 
@@ -577,6 +579,59 @@
           </div>
         </div>
 
+        <!-- TAB: DASHBOARD -->
+        <div class="tool-panel" id="tab-dashboard">
+          <div class="card-title" style="margin-bottom:8px;font-size:12px">
+            <span>📈</span>
+            <span>ประสิทธิภาพการเทรด (Performance Dashboard)</span>
+          </div>
+          <div class="dash-summary">
+            <div class="dash-stat">
+              <div class="v11-stat-label">เทรดทั้งหมด</div>
+              <div class="risk-val" id="dash-count" style="color:var(--gold-primary);font-size:16px">0</div>
+            </div>
+            <div class="dash-stat">
+              <div class="v11-stat-label">Win Rate</div>
+              <div class="risk-val" id="dash-winrate" style="color:var(--accent-green);font-size:16px">0%</div>
+            </div>
+            <div class="dash-stat">
+              <div class="v11-stat-label">P&L รวม</div>
+              <div class="risk-val" id="dash-pnl" style="font-size:16px">$0.00</div>
+            </div>
+            <div class="dash-stat">
+              <div class="v11-stat-label">กำไร/เทรดเฉลี่ย</div>
+              <div class="risk-val" id="dash-avg" style="font-size:14px">$0.00</div>
+            </div>
+          </div>
+          <div class="dash-sub-row">
+            <div class="dash-stat">
+              <div class="v11-stat-label">เทรดชนะ 👍</div>
+              <div class="risk-val" id="dash-wins" style="color:var(--accent-green)">0</div>
+            </div>
+            <div class="dash-stat">
+              <div class="v11-stat-label">เทรดแพ้ 👎</div>
+              <div class="risk-val" id="dash-losses" style="color:var(--accent-red)">0</div>
+            </div>
+            <div class="dash-stat">
+              <div class="v11-stat-label">กำไรสูงสุด</div>
+              <div class="risk-val" id="dash-best" style="color:var(--accent-green)">$0</div>
+            </div>
+            <div class="dash-stat">
+              <div class="v11-stat-label">ขาดทุนมากสุด</div>
+              <div class="risk-val" id="dash-worst" style="color:var(--accent-red)">$0</div>
+            </div>
+          </div>
+          <div class="dash-equity-wrap">
+            <canvas id="dash-equity-canvas" width="600" height="220"></canvas>
+            <div class="dash-empty" id="dash-equity-empty">ยังไม่มีข้อมูลเทรด — ไปบันทึกที่แท็บ Trade Log ก่อน</div>
+          </div>
+          <div class="dash-legend">
+            <span><i style="background:var(--accent-green)"></i> Equity (P&L สะสม)</span>
+            <span><i style="background:var(--accent-red)"></i> จุดขาดทุน</span>
+            <span><i style="background:var(--gold-primary)"></i> จุดกำไร</span>
+          </div>
+        </div>
+
         <!-- TAB: JOURNAL -->
         <div class="tool-panel" id="tab-journal">
           <div class="card-title" style="margin-bottom:8px;font-size:12px">
@@ -613,7 +668,7 @@
         <span class="chat-window-avatar" id="chat-my-avatar"></span>
         <div>
           <div style="font-weight:800;font-size:13px;color:var(--gold-light)">แชททีม</div>
-          <div style="font-size:9px;color:var(--accent-green)">● สมาชิกออนไลน์ · <span id="chat-my-name">—</span></div>
+          <div style="font-size:9px;color:var(--accent-green)">● <span id="chat-online-count">0</span> คนออนไลน์ · <span id="chat-my-name">—</span></div>
         </div>
       </div>
       <div class="chat-window-actions">
@@ -633,11 +688,12 @@
       </div>
     </div>
     <div class="chat-input-row">
+      <div class="chat-mention-dropdown" id="chat-mention-dropdown"></div>
       <label class="chat-attach-btn" title="อัปโหลดรูปภาพ">
         <input type="file" id="chat-image-input" accept="image/*" style="display:none" onchange="handleChatImageSelect(event)">
         🖼️
       </label>
-      <input type="text" id="chat-input" class="chat-input" placeholder="พิมพ์ข้อความ..." maxlength="500" autocomplete="off">
+      <input type="text" id="chat-input" class="chat-input" placeholder="พิมพ์ข้อความ..." maxlength="500" autocomplete="off" oninput="onChatInputChange()">
       <button class="btn-primary btn-sm" onclick="sendChatMessage()">ส่ง</button>
     </div>
     <div style="font-size:9px;color:var(--text-muted);padding:6px 12px;text-align:center">เฉพาะสมาชิกที่ล็อกอิน · อัปเดตอัตโนมัติทุก 3 วินาที</div>
@@ -670,8 +726,8 @@
     <div class="chat-lightbox-close" onclick="closeChatLightbox()">✕</div>
   </div>
 
-  <script src="app.js?v=48.0"></script>
-  <script src="v11engine.js?v=48.0"></script>
+  <script src="app.js?v=49.0"></script>
+  <script src="v11engine.js?v=49.0"></script>
 
   <!-- Cloudflare Web Analytics -->
   <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "ed896493cd304caa97cd0809d973c369", "spa": true}'></script>

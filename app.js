@@ -359,7 +359,7 @@ function initApp() {
     const clockId = setInterval(updateTradingSessionsClock, 1000);
     intervalIds.push(clockId);
   } catch (e) { console.error(e); }
-  try { loadTradeLogs().catch(e => console.error(e)); } catch (e) { console.error(e); }
+  try { loadTradeLogs().then(() => renderTradeDashboard()).catch(e => console.error(e)); } catch (e) { console.error(e); }
   try { startChatPolling(); } catch (e) { console.error(e); }
   try { loadChatProfile(); } catch (e) { console.error(e); }
   try {
@@ -1507,6 +1507,7 @@ let chatSoundType = localStorage.getItem('jj_chat_sound_type') || 'ding';
 let chatDisplayName = null;
 let chatAvatar = null;
 let chatUserId = null;
+let chatOnlineUsers = [];
 const BASE_PAGE_TITLE = document.title;
 
 const CHAT_SOUNDS = {
@@ -1840,27 +1841,35 @@ async function fetchChatMessages() {
   if (sessionToken && sessionToken !== 'guest_mode') {
     try {
       const data = await api('GET', `/api/chat?after=${chatLastId}`);
-      if (Array.isArray(data) && data.length) {
-        chatMessageCache = chatMessageCache.concat(data).slice(-200);
-        chatLastId = data[data.length - 1].id;
-        // First sync after page load: only fast-forward the last-read id so
-        // historical messages are NOT counted as unread.
-        if (!chatInitialSyncDone) {
-          chatInitialSyncDone = true;
-          if (chatWindowOpen) renderChatMessages();
-          return;
+      if (data && !data.isGuest && !data.error) {
+        // New API shape: { messages: [], online: [] }; fall back to plain array
+        const messages = Array.isArray(data) ? data : (data.messages || []);
+        if (Array.isArray(data.online)) {
+          chatOnlineUsers = data.online;
+          updateChatOnlineUI();
         }
-        if (chatWindowOpen) {
-          renderChatMessages();
-        } else {
-          const latest = data[data.length - 1];
-          // Count as unread + play sound whenever the chat window is closed
-          // (tab hidden or not), like a real chat app
-          chatUnreadCount += data.length;
-          updateChatUnreadBadge();
-          if (chatSoundEnabled) playChatNewMessageSound();
-          if (document.hidden || document.visibilityState !== 'visible') {
-            notifyChatUnread(latest.display_name || latest.username, latest.message);
+        if (messages.length) {
+          chatMessageCache = chatMessageCache.concat(messages).slice(-200);
+          chatLastId = messages[messages.length - 1].id;
+          // First sync after page load: only fast-forward the last-read id so
+          // historical messages are NOT counted as unread.
+          if (!chatInitialSyncDone) {
+            chatInitialSyncDone = true;
+            if (chatWindowOpen) renderChatMessages();
+            return;
+          }
+          if (chatWindowOpen) {
+            renderChatMessages();
+          } else {
+            const latest = messages[messages.length - 1];
+            // Count as unread + play sound whenever the chat window is closed
+            // (tab hidden or not), like a real chat app
+            chatUnreadCount += messages.length;
+            updateChatUnreadBadge();
+            if (chatSoundEnabled) playChatNewMessageSound();
+            if (document.hidden || document.visibilityState !== 'visible') {
+              notifyChatUnread(latest.display_name || latest.username, latest.message);
+            }
           }
         }
       }
@@ -1875,6 +1884,46 @@ document.addEventListener('visibilitychange', () => {
     updateChatUnreadBadge();
   }
 });
+
+function updateChatOnlineUI() {
+  const el = document.getElementById('chat-online-count');
+  if (el) el.textContent = chatOnlineUsers.length;
+}
+
+function onChatInputChange() {
+  const input = document.getElementById('chat-input');
+  const dd = document.getElementById('chat-mention-dropdown');
+  if (!input || !dd) return;
+  const text = input.value;
+  const match = text.match(/@([\u0E00-\u0E7FA-Za-z0-9_]*)$/);
+  if (!match || !chatOnlineUsers.length) { dd.classList.remove('open'); return; }
+  const q = match[1].toLowerCase();
+  const list = chatOnlineUsers.filter(u => (u.display_name || u.username).toLowerCase().includes(q));
+  if (!list.length) { dd.classList.remove('open'); return; }
+  dd.innerHTML = list.slice(0, 6).map(u => {
+    const name = u.display_name || u.username;
+    return `<button type="button" class="chat-mention-item" onclick="insertChatMention('${escapeJs(name)}')">${avatarHtml(name, null, '')}${escapeHtml(name)}</button>`;
+  }).join('');
+  dd.classList.add('open');
+}
+
+function insertChatMention(name) {
+  const input = document.getElementById('chat-input');
+  const dd = document.getElementById('chat-mention-dropdown');
+  if (!input) return;
+  const text = input.value.replace(/@[\u0E00-\u0E7FA-Za-z0-9_]*$/, '@' + name + ' ');
+  input.value = text;
+  input.focus();
+  if (dd) dd.classList.remove('open');
+}
+
+function escapeRegExp(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function highlightMentions(htmlText) {
+  return htmlText.replace(/@([\u0E00-\u0E7FA-Za-z0-9_]+)/g, '<span class="chat-mention">@$1</span>');
+}
 
 function renderChatMessages() {
   const container = document.getElementById('chat-messages');
@@ -1893,7 +1942,7 @@ function renderChatMessages() {
     item.className = 'chat-msg' + (isMine ? ' mine' : '');
     const showName = msg.display_name || msg.username || '?';
     let body = '';
-    if (msg.message) body += `<div class="chat-msg-text">${escapeHtml(msg.message)}</div>`;
+    if (msg.message) body += `<div class="chat-msg-text">${highlightMentions(escapeHtml(msg.message))}</div>`;
     if (msg.image) {
       body += `<img class="chat-msg-img" src="${escapeHtml(msg.image)}" alt="ภาพจากแชท" onclick="openChatLightbox('${escapeJs(msg.image)}')">`;
     }
@@ -1910,6 +1959,52 @@ function renderChatMessages() {
     container.appendChild(item);
   });
   if (shouldScroll || chatWindowOpen) container.scrollTop = container.scrollHeight;
+}
+
+function shareV11Signal() {
+  if (!sessionToken || sessionToken === 'guest_mode') {
+    showToast('❌ ต้องล็อกอินเป็นสมาชิกก่อนแชร์สัญญาณครับ');
+    return;
+  }
+  const $ = id => document.getElementById(id);
+  const entry = ($('v11-val-entry')?.textContent || '').trim();
+  if (!entry || entry === '--') {
+    showToast('❌ ยังไม่มีสัญญาณ V11 ให้แชร์ — รอข้อมูลสวิงก่อนครับ');
+    return;
+  }
+  const sig = ($('v11-signal-badge')?.textContent || '').trim();
+  const dir = /SELL/i.test(sig) ? '🔴 SELL' : (/BUY/i.test(sig) ? '🟢 BUY' : '⏸️ WAIT');
+  const trend = ($('v11-trend-badge')?.textContent || '').trim();
+  const tf = ($('v11-tf-badge')?.textContent || '⚡ 5นาที').trim();
+  const tp1 = ($('v11-val-tp1')?.textContent || '-').trim();
+  const tp2 = ($('v11-val-tp2')?.textContent || '-').trim();
+  const tp3 = ($('v11-val-tp3')?.textContent || '-').trim();
+  const sl = ($('v11-val-sl')?.textContent || '-').trim();
+  const live = ($('v11-val-live')?.textContent || '-').trim();
+  const msg = [
+    `⚡ V11 SIGNAL XAU/USD • ${tf}`,
+    `${dir} ${trend}`,
+    `💰 Entry: ${entry}`,
+    `🎯 TP1: ${tp1} | TP2: ${tp2} | TP3: ${tp3}`,
+    `🛑 SL: ${sl}`,
+    `📡 Live: ${live}`,
+  ].join('\n');
+  api('POST', '/api/chat', { message: msg }).then(res => {
+    if (res && res.ok) {
+      chatMessageCache.push({
+        id: res.id, user_id: chatUserId, username: currentUsername,
+        display_name: chatIdentityName(), avatar: chatAvatar,
+        message: msg, image: null,
+        created_at: res.created_at || new Date().toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })
+      });
+      chatLastId = res.id;
+      toggleChatWindow(true);
+      renderChatMessages();
+      showToast('📤 แชร์สัญญาณ V11 ไปที่แชททีมแล้ว');
+    } else {
+      showToast('❌ แชร์สัญญาณไม่สำเร็จ กรุณาลองใหม่ครับ');
+    }
+  }).catch(() => showToast('❌ แชร์สัญญาณไม่สำเร็จ กรุณาลองใหม่ครับ'));
 }
 
 function playChatNewMessageSound() {
@@ -2118,7 +2213,7 @@ function addTradeLogRecord() {
   if (noteEl) noteEl.value = '';
 
   showToast(pnl >= 0 ? `✅ บันทึกออเดอร์: กำไร +${currencySymbol}${pnl.toFixed(2)}` : `📉 บันทึกออเดอร์: ขาดทุน -${currencySymbol}${Math.abs(pnl).toFixed(2)}`);
-  loadTradeLogs();
+  loadTradeLogs().then(() => renderTradeDashboard());
 
   // Sync to cloud if logged in
   if (sessionToken && sessionToken !== 'guest_mode') {
@@ -2143,7 +2238,7 @@ function deleteTradeLogRecord(id) {
   let logs = getLocalTradeLogs();
   logs = logs.filter(item => item.id !== id);
   saveLocalTradeLogs(logs);
-  loadTradeLogs();
+  loadTradeLogs().then(() => renderTradeDashboard());
 
   // Sync delete to cloud if logged in
   if (sessionToken && sessionToken !== 'guest_mode') {
@@ -2250,5 +2345,120 @@ async function loadTradeLogs() {
     `;
     container.appendChild(item);
   });
+}
+
+// ── PERFORMANCE DASHBOARD ─────────────────────────────
+function formatPnlShort(v) {
+  return (v >= 0 ? '+' : '') + '$' + v.toFixed(1);
+}
+
+function renderTradeDashboard() {
+  const logs = getLocalTradeLogs();
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+  const wins = logs.filter(l => l.result === 'WIN').length;
+  const losses = logs.length - wins;
+  const totalPnl = logs.reduce((s, l) => s + parseFloat(l.pnl || 0), 0);
+  const avgPnl = logs.length ? totalPnl / logs.length : 0;
+  const best = logs.length ? Math.max(...logs.map(l => parseFloat(l.pnl || 0))) : 0;
+  const worst = logs.length ? Math.min(...logs.map(l => parseFloat(l.pnl || 0))) : 0;
+  const winRate = logs.length ? (wins / logs.length) * 100 : 0;
+
+  set('dash-count', logs.length);
+  set('dash-wins', wins);
+  set('dash-losses', losses);
+  set('dash-best', best >= 0 ? '+' + best.toFixed(0) : best.toFixed(0));
+  set('dash-worst', worst.toFixed(0));
+
+  const wrEl = document.getElementById('dash-winrate');
+  if (wrEl) {
+    wrEl.textContent = winRate.toFixed(0) + '%';
+    wrEl.style.color = winRate >= 50 ? 'var(--accent-green)' : 'var(--accent-red)';
+  }
+  const pnlEl = document.getElementById('dash-pnl');
+  if (pnlEl) {
+    pnlEl.textContent = (totalPnl >= 0 ? '+' : '') + '$' + totalPnl.toFixed(2);
+    pnlEl.style.color = totalPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+  }
+  const avgEl = document.getElementById('dash-avg');
+  if (avgEl) {
+    avgEl.textContent = (avgPnl >= 0 ? '+' : '') + '$' + avgPnl.toFixed(2);
+    avgEl.style.color = avgPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+  }
+
+  const emptyEl = document.getElementById('dash-equity-empty');
+  if (emptyEl) emptyEl.style.display = logs.length ? 'none' : 'flex';
+
+  const canvas = document.getElementById('dash-equity-canvas');
+  if (canvas && logs.length) drawEquityCurve(canvas, logs);
+}
+
+function drawEquityCurve(canvas, logs) {
+  const wrap = canvas.parentElement;
+  const width = wrap ? wrap.clientWidth : 600;
+  if (width < 60) return; // panel hidden — will redraw when tab opens
+  const height = Math.max(150, Math.round(width * 0.36));
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+  canvas.style.width = width + 'px';
+  canvas.style.height = height + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+
+  const padL = 10, padR = 10, padT = 18, padB = 14;
+  const cw = width - padL - padR;
+  const ch = height - padT - padB;
+
+  ctx.strokeStyle = 'rgba(128,140,160,0.15)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + (ch / 4) * i;
+    ctx.beginPath();
+    ctx.setLineDash([4, 4]);
+    ctx.moveTo(padL, y);
+    ctx.lineTo(width - padR, y);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  const series = logs.slice().reverse().map(l => ({ pnl: parseFloat(l.pnl || 0), win: l.result === 'WIN' }));
+  const points = [];
+  let cum = 0;
+  series.forEach(s => { cum += s.pnl; points.push(cum); });
+
+  const maxV = Math.max(...points, 0);
+  const minV = Math.min(...points, 0);
+  const range = (maxV - minV) || 1;
+  const padV = range * 0.08;
+  const x = i => padL + (i / Math.max(points.length - 1, 1)) * cw;
+  const y = v => padT + ch - ((v - (minV - padV)) / (range + 2 * padV)) * ch;
+
+  if (minV < 0 && maxV > 0) {
+    ctx.strokeStyle = 'rgba(128,140,160,0.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padL, y(0));
+    ctx.lineTo(width - padR, y(0));
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = '#00e676';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  points.forEach((v, i) => { const X = x(i), Y = y(v); if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y); });
+  ctx.stroke();
+
+  points.forEach((v, i) => {
+    ctx.beginPath();
+    ctx.arc(x(i), y(v), 3.2, 0, Math.PI * 2);
+    ctx.fillStyle = series[i].win ? '#f5c518' : '#ff5252';
+    ctx.fill();
+  });
+
+  ctx.fillStyle = 'rgba(160,170,185,0.95)';
+  ctx.font = '11px Inter, sans-serif';
+  ctx.fillText(formatPnlShort(points[points.length - 1]), padL + 4, padT - 4);
 }
 

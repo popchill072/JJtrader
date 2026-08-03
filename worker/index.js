@@ -720,6 +720,7 @@ export default {
       // ── CHAT PROFILE (display name + avatar) ─────────
       // GET /api/profile
       if (path === '/api/profile' && method === 'GET') {
+        await DB.prepare('UPDATE users SET last_seen = ? WHERE id = ?').bind(new Date().toISOString(), user.id).run();
         return respond({
           user_id: user.id,
           username: user.username,
@@ -758,7 +759,7 @@ export default {
       }
 
       // ── TEAM CHAT (polling) ─────────────────────────
-      // GET /api/chat?after=<id>  -> messages newer than <id> (default last 50)
+      // GET /api/chat?after=<id>  -> { messages, online }
       // display_name/avatar are JOINed live so profile changes apply to history
       if (path === '/api/chat' && method === 'GET') {
         const after = parseInt(url.searchParams.get('after') || '0', 10) || 0;
@@ -769,7 +770,17 @@ export default {
            LEFT JOIN users u ON u.id = m.user_id
            WHERE m.id > ? ORDER BY m.id ASC LIMIT 100`
         ).bind(after).all();
-        return respond(results || []);
+
+        // Mark this user as online
+        await DB.prepare('UPDATE users SET last_seen = ? WHERE id = ?').bind(new Date().toISOString(), user.id).run();
+
+        // Members seen within the last 90s count as online
+        const cutoff = new Date(Date.now() - 90 * 1000).toISOString();
+        const online = await DB.prepare(
+          `SELECT username, COALESCE(display_name, username) AS display_name FROM users WHERE last_seen IS NOT NULL AND last_seen >= ? ORDER BY display_name ASC LIMIT 50`
+        ).bind(cutoff).all();
+
+        return respond({ messages: results || [], online: online.results || [] });
       }
 
       // POST /api/chat  { message?, image? }
@@ -788,6 +799,7 @@ export default {
         }
         if (!message && !image) return fail('กรุณาพิมพ์ข้อความหรือแนบรูปภาพครับ');
         const created = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'short', timeStyle: 'short' });
+        await DB.prepare('UPDATE users SET last_seen = ? WHERE id = ?').bind(new Date().toISOString(), user.id).run();
         const { meta } = await DB.prepare(
           'INSERT INTO chat_messages (user_id, username, message, image, created_at) VALUES (?, ?, ?, ?, ?)'
         ).bind(user.id, user.username, message, image, created).run();

@@ -1064,6 +1064,69 @@ select.calc-input {
   border-radius: var(--radius-sm);
 }
 
+/* ── PERFORMANCE DASHBOARD ── */
+.dash-summary, .dash-sub-row {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+  margin-bottom: 8px;
+}
+
+.dash-stat {
+  display: flex; flex-direction: column;
+  padding: 8px; text-align: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.dash-sub-row { grid-template-columns: repeat(4, 1fr); }
+
+.dash-equity-wrap {
+  position: relative;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  margin-top: 4px;
+}
+
+.dash-equity-wrap canvas {
+  display: block;
+  max-width: 100%;
+}
+
+.dash-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 12px;
+}
+
+.dash-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.dash-legend i {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: -1px;
+}
+
+@media (max-width: 600px) {
+  .dash-summary, .dash-sub-row { grid-template-columns: repeat(2, 1fr); }
+}
+
 .trade-form {
   background: var(--bg-surface);
   border: 1px solid var(--border-gold);
@@ -1325,6 +1388,58 @@ select.calc-input {
   padding: 10px 12px;
   border-top: 1px solid var(--border-subtle);
   flex-shrink: 0;
+  position: relative;
+}
+
+.chat-mention-dropdown {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 12px;
+  right: 12px;
+  background: var(--bg-card-solid);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card);
+  display: none;
+  flex-direction: column;
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.chat-mention-dropdown.open { display: flex; }
+
+.chat-mention-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-main);
+}
+
+.chat-mention-item:last-child { border-bottom: none; }
+
+.chat-mention-item:hover {
+  background: rgba(255,215,0,0.1);
+}
+
+.chat-mention-item .chat-avatar {
+  width: 24px;
+  height: 24px;
+  font-size: 10px;
+}
+
+.chat-mention {
+  color: var(--accent-cyan);
+  font-weight: 700;
 }
 
 .chat-input {
