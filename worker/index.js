@@ -278,7 +278,7 @@ async function getUser(request, DB) {
   if (!token) return null;
   const now = new Date().toISOString();
   const row = await DB.prepare(
-    'SELECT u.id, u.username FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.token = ? AND s.expires_at > ?'
+    'SELECT u.id, u.username, u.display_name, u.avatar FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.token = ? AND s.expires_at > ?'
   ).bind(token, now).first();
   return row || null;
 }
@@ -717,12 +717,56 @@ export default {
       return respond({ ok: true });
     }
 
+      // ── CHAT PROFILE (display name + avatar) ─────────
+      // GET /api/profile
+      if (path === '/api/profile' && method === 'GET') {
+        return respond({
+          username: user.username,
+          display_name: user.display_name || null,
+          avatar: user.avatar || null,
+        });
+      }
+
+      // POST /api/profile  { display_name?, avatar? }
+      if (path === '/api/profile' && method === 'POST') {
+        const body = await readJson(request);
+        if (!body) return fail('ข้อมูล JSON ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง', 400);
+
+        const cleanDisplay = sanitizeText(body.display_name, 30) || null;
+        if (cleanDisplay !== null && (cleanDisplay.length < 1 || cleanDisplay.length > 30)) {
+          return fail('ชื่อแสดงผลต้องมีความยาว 1-30 ตัวอักษรครับ', 400);
+        }
+
+        let cleanAvatar = user.avatar || null;
+        if (body.avatar !== undefined) {
+          if (body.avatar === null || body.avatar === '') {
+            cleanAvatar = null;
+          } else {
+            const av = String(body.avatar);
+            const isImage = /^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(av);
+            if (!isImage) return fail('รูปแบบภาพโปรไฟล์ไม่ถูกต้องครับ', 400);
+            if (av.length > 250_000) return fail('ภาพโปรไฟล์ใหญ่เกินไป (สูงสุด ~180KB) กรุณาเลือกรูปที่เล็กลง', 400);
+            cleanAvatar = av;
+          }
+        }
+
+        // Update only when provided; absent fields keep their current values
+        await DB.prepare('UPDATE users SET display_name = ?, avatar = ? WHERE id = ?')
+          .bind(cleanDisplay, cleanAvatar, user.id).run();
+        return respond({ ok: true, display_name: cleanDisplay, avatar: cleanAvatar });
+      }
+
       // ── TEAM CHAT (polling) ─────────────────────────
       // GET /api/chat?after=<id>  -> messages newer than <id> (default last 50)
+      // display_name/avatar are JOINed live so profile changes apply to history
       if (path === '/api/chat' && method === 'GET') {
         const after = parseInt(url.searchParams.get('after') || '0', 10) || 0;
         const { results } = await DB.prepare(
-          'SELECT id, username, message, image, created_at FROM chat_messages WHERE id > ? ORDER BY id ASC LIMIT 100'
+          `SELECT m.id, m.username, COALESCE(u.display_name, m.username) AS display_name, u.avatar AS avatar,
+                  m.message, m.image, m.created_at
+           FROM chat_messages m
+           LEFT JOIN users u ON u.id = m.user_id
+           WHERE m.id > ? ORDER BY m.id ASC LIMIT 100`
         ).bind(after).all();
         return respond(results || []);
       }

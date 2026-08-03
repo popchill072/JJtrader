@@ -361,6 +361,7 @@ function initApp() {
   } catch (e) { console.error(e); }
   try { loadTradeLogs().catch(e => console.error(e)); } catch (e) { console.error(e); }
   try { startChatPolling(); } catch (e) { console.error(e); }
+  try { loadChatProfile(); } catch (e) { console.error(e); }
   try {
     const initPrice = lastKnownLivePrice || parseFloat(document.getElementById('gold-spot-input')?.value) || 0;
     calculateV11ProEngine(initPrice);
@@ -1503,6 +1504,8 @@ let chatWindowOpen = false;
 let chatUnreadCount = 0;
 let chatSoundEnabled = (localStorage.getItem('jj_chat_sound') || 'on') === 'on';
 let chatSoundType = localStorage.getItem('jj_chat_sound_type') || 'ding';
+let chatDisplayName = null;
+let chatAvatar = null;
 const BASE_PAGE_TITLE = document.title;
 
 const CHAT_SOUNDS = {
@@ -1589,6 +1592,148 @@ function updateChatSoundTypeUI() {
   const snd = CHAT_SOUNDS[chatSoundType] || CHAT_SOUNDS.ding;
   sndBtn.textContent = snd.name;
   sndBtn.title = `เสียงปัจจุบัน: ${snd.name} (แตะเพื่อเปลี่ยนเสียง)`;
+}
+
+// ── CHAT PROFILE (display name + avatar) ───────────────
+function chatIdentityName() {
+  return chatDisplayName || currentUsername || 'Guest Trader';
+}
+
+function chatIdentityAvatar() {
+  return chatAvatar || null;
+}
+
+function initialsFor(name) {
+  const s = String(name || '?').trim();
+  return (s.charAt(0) || '?').toUpperCase();
+}
+
+function avatarHtml(userName, avatarSrc, sizeClass = '') {
+  const name = String(userName || '?');
+  if (avatarSrc) {
+    return `<span class="chat-avatar ${sizeClass}" title="${escapeHtml(name)}"><img src="${escapeHtml(avatarSrc)}" alt=""></span>`;
+  }
+  const hue = Math.abs([...name].reduce((a, c) => a + c.charCodeAt(0), 0)) % 360;
+  return `<span class="chat-avatar chat-avatar-initials ${sizeClass}" style="--avatar-hue:${hue}" title="${escapeHtml(name)}">${escapeHtml(initialsFor(name))}</span>`;
+}
+
+async function loadChatProfile() {
+  if (sessionToken && sessionToken !== 'guest_mode') {
+    try {
+      const data = await api('GET', '/api/profile');
+      if (data && !data.isGuest && !data.error) {
+        chatDisplayName = data.display_name || null;
+        chatAvatar = data.avatar || null;
+      }
+    } catch (e) {}
+  } else {
+    chatDisplayName = localStorage.getItem('jj_chat_display_name') || null;
+    chatAvatar = localStorage.getItem('jj_chat_avatar') || null;
+  }
+  updateChatProfileUI();
+}
+
+function updateChatProfileUI() {
+  const headerAvatar = document.getElementById('chat-my-avatar');
+  if (headerAvatar) headerAvatar.innerHTML = avatarHtml(chatIdentityName(), chatIdentityAvatar(), 'chat-avatar-lg');
+  const headerName = document.getElementById('chat-my-name');
+  if (headerName) headerName.textContent = chatIdentityName();
+}
+
+function openChatProfileSettings() {
+  const modal = document.getElementById('chat-profile-modal');
+  if (!modal) return;
+  delete window.__chatAvatarPending;
+  delete window.__chatAvatarRemove;
+  const nameInput = document.getElementById('chat-profile-name');
+  const preview = document.getElementById('chat-profile-preview');
+  if (nameInput) nameInput.value = chatDisplayName || '';
+  if (preview) preview.innerHTML = avatarHtml(chatIdentityName(), chatIdentityAvatar(), 'chat-avatar-xl');
+  modal.classList.add('open');
+}
+
+function closeChatProfileSettings() {
+  const modal = document.getElementById('chat-profile-modal');
+  if (modal) modal.classList.remove('open');
+}
+
+function handleChatProfileAvatarSelect(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    showToast('❌ กรุณาเลือกไฟล์รูปภาพเท่านั้นครับ');
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('❌ รูปใหญ่เกินไป (สูงสุด 5MB) กรุณาเลือกไฟล์ที่เล็กลง');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const size = 200;
+        const canvas = document.createElement('canvas');
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const minSide = Math.min(img.width, img.height);
+        const sx = (img.width - minSide) / 2;
+        const sy = (img.height - minSide) / 2;
+        ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
+        const preview = document.getElementById('chat-profile-preview');
+        if (preview) preview.innerHTML = `<img src="${canvas.toDataURL('image/jpeg', 0.85)}" alt="ภาพโปรไฟล์">`;
+        window.__chatAvatarPending = canvas.toDataURL('image/jpeg', 0.85);
+      } catch (e) {
+        showToast('❌ ไม่สามารถประมวลผลรูปภาพได้');
+      }
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveChatProfile() {
+  const nameInput = document.getElementById('chat-profile-name');
+  const newName = nameInput ? nameInput.value.trim() : '';
+  const hasNewAvatar = !!window.__chatAvatarPending;
+  const wantsRemove = !!window.__chatAvatarRemove;
+
+  if (sessionToken && sessionToken !== 'guest_mode') {
+    if (!newName) {
+      showToast('❌ กรุณากรอกชื่อแสดงผล (อย่างน้อย 1 ตัวอักษร)');
+      return;
+    }
+    const payload = { display_name: newName };
+    if (hasNewAvatar) payload.avatar = window.__chatAvatarPending;
+    if (wantsRemove) payload.avatar = null;
+    const res = await api('POST', '/api/profile', payload);
+    if (res && res.error && !res.isGuest) {
+      showToast('❌ ' + res.error);
+      return;
+    }
+  } else {
+    localStorage.setItem('jj_chat_display_name', newName);
+    if (hasNewAvatar) localStorage.setItem('jj_chat_avatar', window.__chatAvatarPending);
+    if (wantsRemove) localStorage.removeItem('jj_chat_avatar');
+  }
+
+  chatDisplayName = newName;
+  if (hasNewAvatar) chatAvatar = window.__chatAvatarPending;
+  if (wantsRemove) chatAvatar = null;
+  delete window.__chatAvatarPending;
+  delete window.__chatAvatarRemove;
+  closeChatProfileSettings();
+  updateChatProfileUI();
+  renderChatMessages();
+  showToast('✅ บันทึกโปรไฟล์แชทแล้ว');
+}
+
+function removeChatAvatar() {
+  delete window.__chatAvatarPending;
+  window.__chatAvatarRemove = true;
+  const preview = document.getElementById('chat-profile-preview');
+  if (preview) preview.innerHTML = avatarHtml(chatIdentityName(), null, 'chat-avatar-xl');
 }
 
 function cycleChatSoundType() {
@@ -1741,18 +1886,23 @@ function renderChatMessages() {
   const myUsername = currentUsername || 'Guest Trader';
   chatMessageCache.forEach(msg => {
     const item = document.createElement('div');
-    item.className = 'chat-msg' + (msg.username === myUsername ? ' mine' : '');
+    const isMine = (msg.display_name || msg.username) === myUsername;
+    item.className = 'chat-msg' + (isMine ? ' mine' : '');
+    const showName = msg.display_name || msg.username || '?';
     let body = '';
     if (msg.message) body += `<div class="chat-msg-text">${escapeHtml(msg.message)}</div>`;
     if (msg.image) {
       body += `<img class="chat-msg-img" src="${escapeHtml(msg.image)}" alt="ภาพจากแชท" onclick="openChatLightbox('${escapeJs(msg.image)}')">`;
     }
     item.innerHTML = `
-      <div class="chat-msg-head">
-        <span class="chat-msg-user">${escapeHtml(msg.username || '?')}</span>
-        <span class="chat-msg-time">${escapeHtml(msg.created_at || '')}</span>
+      ${avatarHtml(showName, msg.avatar || null)}
+      <div class="chat-msg-content">
+        <div class="chat-msg-head">
+          <span class="chat-msg-user">${escapeHtml(showName)}</span>
+          <span class="chat-msg-time">${escapeHtml(msg.created_at || '')}</span>
+        </div>
+        ${body}
       </div>
-      ${body}
     `;
     container.appendChild(item);
   });

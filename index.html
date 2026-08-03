@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;700;800&family=Kanit:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logo.jpg">
-  <link rel="stylesheet" href="styles.css?v=46.0">
+  <link rel="stylesheet" href="styles.css?v=47.0">
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body>
@@ -610,15 +610,16 @@
   <div class="chat-window" id="chat-window">
     <div class="chat-window-header">
       <div class="chat-window-title">
-        <span class="chat-window-avatar">👥</span>
+        <span class="chat-window-avatar" id="chat-my-avatar"></span>
         <div>
           <div style="font-weight:800;font-size:13px;color:var(--gold-light)">แชททีม</div>
-          <div style="font-size:9px;color:var(--accent-green)">● สมาชิกออนไลน์</div>
+          <div style="font-size:9px;color:var(--accent-green)">● สมาชิกออนไลน์ · <span id="chat-my-name">—</span></div>
         </div>
       </div>
       <div class="chat-window-actions">
         <button class="chat-close-btn" id="chat-sound-type-toggle" onclick="cycleChatSoundType()" title="แตะเพื่อเปลี่ยนเสียงแจ้งเตือน">ติ๊ง</button>
         <button class="chat-close-btn" id="chat-sound-toggle" onclick="toggleChatSound()" title="เปิด/ปิดเสียงแจ้งเตือน">🔔</button>
+        <button class="chat-close-btn" onclick="openChatProfileSettings()" title="ตั้งค่าโปรไฟล์แชท (ชื่อ + รูป)">⚙️</button>
         <button class="chat-close-btn" onclick="toggleChatWindow(false)" title="ปิด">✕</button>
       </div>
     </div>
@@ -642,14 +643,35 @@
     <div style="font-size:9px;color:var(--text-muted);padding:6px 12px;border-top:1px solid var(--border-subtle);text-align:center">เฉพาะสมาชิกที่ล็อกอิน · อัปเดตอัตโนมัติทุก 3 วินาที</div>
   </div>
 
+  <!-- CHAT PROFILE SETTINGS -->
+  <div class="chat-profile-modal" id="chat-profile-modal" onclick="if(event.target===this)closeChatProfileSettings()">
+    <div class="chat-profile-card">
+      <div class="chat-profile-title">⚙️ ตั้งค่าโปรไฟล์แชท</div>
+      <div class="chat-profile-preview" id="chat-profile-preview"></div>
+      <label class="chat-profile-label" for="chat-profile-name">ชื่อที่แสดงในแชท</label>
+      <input type="text" id="chat-profile-name" class="chat-input" maxlength="30" placeholder="กรอกชื่อที่อยากแสดง (เช่น ชื่อเล่นของคุณ)">
+      <div class="chat-profile-actions">
+        <label class="btn-primary btn-sm" style="width:auto;cursor:pointer;text-align:center">📷 เลือกรูปโปรไฟล์
+          <input type="file" id="chat-profile-avatar-input" accept="image/*" style="display:none" onchange="handleChatProfileAvatarSelect(event)">
+        </label>
+        <button type="button" class="btn-primary btn-sm" style="width:auto;background:var(--bg-chip);border:1px solid var(--border-subtle)" onclick="removeChatAvatar()">🗑️ ลบรูป</button>
+      </div>
+      <div class="chat-profile-actions">
+        <button type="button" class="btn-primary btn-green" style="width:auto" onclick="saveChatProfile()">✅ บันทึก</button>
+        <button type="button" class="btn-primary btn-sm" style="width:auto;background:transparent;border:1px solid var(--border-gold)" onclick="closeChatProfileSettings()">ยกเลิก</button>
+      </div>
+      <div class="chat-profile-hint">เปลี่ยนชื่อ/รูปได้ทุกเมื่อ · รูปถูกครอบให้เป็นวงกลม 200×200px</div>
+    </div>
+  </div>
+
   <!-- CHAT IMAGE LIGHTBOX -->
   <div class="chat-lightbox" id="chat-lightbox" onclick="closeChatLightbox()" title="กดเพื่อปิด">
     <img id="chat-lightbox-img" alt="ดูภาพขนาดใหญ่" onclick="event.stopPropagation()">
     <div class="chat-lightbox-close" onclick="closeChatLightbox()">✕</div>
   </div>
 
-  <script src="app.js?v=46.0"></script>
-  <script src="v11engine.js?v=46.0"></script>
+  <script src="app.js?v=47.0"></script>
+  <script src="v11engine.js?v=47.0"></script>
 
   <!-- Cloudflare Web Analytics -->
   <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "ed896493cd304caa97cd0809d973c369", "spa": true}'></script>
