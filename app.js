@@ -989,8 +989,10 @@ async function fetchPriceForSymbol(symbol) {
   let livePrice = 0;
   try {
     if (symbol.includes('XAU') || symbol.includes('GOLD')) {
+      // Spot price first (matches the OANDA:XAUUSD chart & real-world gold price).
+      // GC=F futures can be ~$50-60 higher than spot, so only fall back to it.
       try {
-        const res = await fetch(API_BASE + '/api/price?symbol=XAU');
+        const res = await fetch('https://api.gold-api.com/price/XAU');
         if (res.ok) {
           const data = await res.json();
           if (data.price) livePrice = parseFloat(data.price);
@@ -999,7 +1001,7 @@ async function fetchPriceForSymbol(symbol) {
 
       if (!livePrice) {
         try {
-          const res = await fetch('https://api.gold-api.com/price/XAU');
+          const res = await fetch(API_BASE + '/api/price?symbol=XAU');
           if (res.ok) {
             const data = await res.json();
             if (data.price) livePrice = parseFloat(data.price);
@@ -1017,8 +1019,9 @@ async function fetchPriceForSymbol(symbol) {
         } catch (e) {}
       }
     } else if (symbol.includes('XAG') || symbol.includes('SILVER')) {
+      // Spot first (matches OANDA:XAGUSD chart); SI=F futures as fallback.
       try {
-        const res = await fetch(API_BASE + '/api/price?symbol=XAG');
+        const res = await fetch('https://api.gold-api.com/price/XAG');
         if (res.ok) {
           const data = await res.json();
           if (data.price) livePrice = parseFloat(data.price);
@@ -1027,7 +1030,7 @@ async function fetchPriceForSymbol(symbol) {
 
       if (!livePrice) {
         try {
-          const res = await fetch('https://api.gold-api.com/price/XAG');
+          const res = await fetch(API_BASE + '/api/price?symbol=XAG');
           if (res.ok) {
             const data = await res.json();
             if (data.price) livePrice = parseFloat(data.price);
