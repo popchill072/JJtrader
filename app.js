@@ -410,6 +410,16 @@ function renderMainChart() {
       container_id: cfg.id,
       studies
     });
+    widget.onChartReady(() => {
+      try {
+        const chart = widget.chart();
+        chart.getAllStudies().forEach(s => {
+          if (s && s.name && s.name.toLowerCase().includes('volume')) {
+            chart.removeStudy(s.id);
+          }
+        });
+      } catch (e) { console.error('Volume pane removal failed:', e); }
+    });
     widgetInstances[idx] = widget;
   });
 }
