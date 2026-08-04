@@ -378,50 +378,90 @@ window.addEventListener('resize', () => {
 // ── TRADINGVIEW CHART ──────────────────────────────────
 let customIndicatorId = localStorage.getItem('jj_custom_indicator_id') || '';
 
+const chartRetryCounters = {};
+
+function initChartWidget(cfg, idx, tvUserId) {
+  const container = document.getElementById(cfg.id);
+  if (!container) return false;
+  container.innerHTML = '';
+
+  const studies = customIndicatorId ? [customIndicatorId] : [];
+  const widget = new TradingView.widget({
+    autosize: true,
+    symbol: currentSymbol,
+    interval: cfg.interval,
+    timezone: "Asia/Bangkok",
+    theme: "dark",
+    style: "1",
+    locale: "th",
+    toolbar_bg: "#080a0f",
+    enable_publishing: false,
+    allow_symbol_change: true,
+    hide_side_toolbar: false,
+    withdateranges: true,
+    save_image: true,
+    auto_save_change: false,
+    client_id: "jjtrader_platform",
+    user_id: tvUserId,
+    container_id: cfg.id,
+    studies
+  });
+  widget.onChartReady(() => {
+    try {
+      const chart = widget.chart();
+      chart.getAllStudies().forEach(s => {
+        if (s && s.name && s.name.toLowerCase().includes('volume')) {
+          chart.removeStudy(s.id);
+        }
+      });
+    } catch (e) { console.error('Volume pane removal failed:', e); }
+  });
+  widgetInstances[idx] = widget;
+  return true;
+}
+
+function scheduleChartRetry(idx, tvUserId) {
+  if (chartRetryCounters[idx] >= 3) return;
+  chartRetryCounters[idx] = (chartRetryCounters[idx] || 0) + 1;
+  const cfg = CHART_TFS[idx];
+  setTimeout(() => {
+    try {
+      initChartWidget(cfg, idx, tvUserId);
+    } catch (e) {
+      console.error('Chart retry failed (' + cfg.id + '):', e);
+      scheduleChartRetry(idx, tvUserId);
+    }
+  }, 1500 * chartRetryCounters[idx]);
+}
+
+function verifyChartsLoaded(tvUserId) {
+  CHART_TFS.forEach((cfg, idx) => {
+    const container = document.getElementById(cfg.id);
+    if (container && container.children.length === 0 && !chartRetryCounters[idx]) {
+      console.warn('Chart container empty, retrying:', cfg.id);
+      scheduleChartRetry(idx, tvUserId);
+    }
+  });
+}
+
 function renderMainChart() {
   widgetInstances.forEach(w => { try { w.remove(); } catch(e) {} });
   widgetInstances = [];
+  Object.keys(chartRetryCounters).forEach(k => delete chartRetryCounters[k]);
 
   const tvUserId = String(currentUsername || 'default_trader').replace(/[^a-zA-Z0-9-_. ]/g, '').slice(0, 32) || 'default_trader';
 
   CHART_TFS.forEach((cfg, idx) => {
-    const container = document.getElementById(cfg.id);
-    if (!container) return;
-    container.innerHTML = '';
-
-    const studies = customIndicatorId ? [customIndicatorId] : [];
-    const widget = new TradingView.widget({
-      autosize: true,
-      symbol: currentSymbol,
-      interval: cfg.interval,
-      timezone: "Asia/Bangkok",
-      theme: "dark",
-      style: "1",
-      locale: "th",
-      toolbar_bg: "#080a0f",
-      enable_publishing: false,
-      allow_symbol_change: true,
-      hide_side_toolbar: false,
-      withdateranges: true,
-      save_image: true,
-      auto_save_change: false,
-      client_id: "jjtrader_platform",
-      user_id: tvUserId,
-      container_id: cfg.id,
-      studies
-    });
-    widget.onChartReady(() => {
-      try {
-        const chart = widget.chart();
-        chart.getAllStudies().forEach(s => {
-          if (s && s.name && s.name.toLowerCase().includes('volume')) {
-            chart.removeStudy(s.id);
-          }
-        });
-      } catch (e) { console.error('Volume pane removal failed:', e); }
-    });
-    widgetInstances[idx] = widget;
+    try {
+      initChartWidget(cfg, idx, tvUserId);
+    } catch (e) {
+      console.error('Chart init failed (' + cfg.id + '):', e);
+      scheduleChartRetry(idx, tvUserId);
+    }
   });
+
+  clearTimeout(window.__chartVerifyTimer);
+  window.__chartVerifyTimer = setTimeout(() => verifyChartsLoaded(tvUserId), 4000);
 }
 
 function setCustomIndicator(indicatorId) {
