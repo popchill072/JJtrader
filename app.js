@@ -1123,7 +1123,7 @@ async function loadForexNews(forceRefresh = false) {
   if (!container) return;
 
   if (forceRefresh || !currentNewsData.length) {
-    container.innerHTML = '<div style="color:var(--text-muted);font-size:11px;text-align:center;padding:15px;">⏳ กำลังอัปเดตข้อมูลข่าวจาก ForexFactory...</div>';
+    container.innerHTML = '<div class="news-loading"><span class="news-spinner"></span>กำลังอัปเดตข้อมูลข่าวจาก ForexFactory...</div>';
     try {
       const res = await fetch(`${API_BASE}/api/news?period=${currentNewsPeriod}`);
       if (res.ok) {
@@ -1131,13 +1131,13 @@ async function loadForexNews(forceRefresh = false) {
         currentNewsIsMock = res.headers.get('X-Mock-Data') === 'true';
       }
     } catch (err) {
-      container.innerHTML = '<div style="color:var(--accent-red);font-size:11px;text-align:center;padding:10px;">⚠️ ไม่สามารถโหลดข้อมูลข่าวสารได้</div>';
+      container.innerHTML = '<div class="empty-state" style="color:var(--accent-red)">⚠️ ไม่สามารถโหลดข้อมูลข่าวสารได้</div>';
       return;
     }
   }
 
   if (!Array.isArray(currentNewsData) || !currentNewsData.length) {
-    container.innerHTML = '<div style="color:var(--text-muted);font-size:11px;text-align:center;padding:15px;">ไม่มีข่าวสารในหมวดหมู่นี้...</div>';
+    container.innerHTML = '<div class="empty-state">ไม่มีข่าวสารในหมวดหมู่นี้...</div>';
     return;
   }
 
@@ -1189,7 +1189,7 @@ function renderNewsListWithCountdown() {
 
   if (currentNewsIsMock) {
     const banner = document.createElement('div');
-    banner.style.cssText = 'background:rgba(255,160,0,0.12);border:1px solid #ffa000;color:#ffa000;font-size:10px;text-align:center;padding:6px 8px;border-radius:6px;margin-bottom:8px;';
+    banner.className = 'news-mock-banner';
     banner.textContent = '⚠️ แหล่งข่าวหลักไม่ตอบสนอง กำลังแสดงข้อมูลตัวอย่าง (Mock) เพื่อให้เห็นรูปแบบการแจ้งเตือน';
     container.appendChild(banner);
   }
@@ -1197,7 +1197,7 @@ function renderNewsListWithCountdown() {
   const filtered = getFilteredNewsData();
 
   if (!filtered.length) {
-    container.innerHTML = '<div style="color:var(--text-muted);font-size:11px;text-align:center;padding:15px;">ไม่มีข่าวสารตามเงื่อนไขที่เลือก...</div>';
+    container.innerHTML = '<div class="empty-state">ไม่มีข่าวสารตามเงื่อนไขที่เลือก...</div>';
     return;
   }
 
@@ -1205,36 +1205,52 @@ function renderNewsListWithCountdown() {
     const el = document.createElement('div');
     el.className = 'news-item';
 
-    let impactBadge = '';
     const impactUpper = (item.impact || 'low').toLowerCase();
+    let impactClass = 'impact-low', impactLabel = '🟡 LOW';
     if (impactUpper.includes('high') || impactUpper.includes('red')) {
-      impactBadge = '<span style="background:rgba(255,82,82,0.2);border:1px solid var(--accent-red);color:var(--accent-red);padding:1px 6px;border-radius:4px;font-size:9px;font-weight:800;">🔴 HIGH (ข่าวแรง)</span>';
+      impactClass = 'impact-high'; impactLabel = '🔴 HIGH (ข่าวแรง)';
     } else if (impactUpper.includes('med') || impactUpper.includes('orange')) {
-      impactBadge = '<span style="background:rgba(255,160,0,0.2);border:1px solid #ffa000;color:#ffa000;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:800;">🟠 MEDIUM</span>';
-    } else {
-      impactBadge = '<span style="background:rgba(255,215,0,0.15);border:1px solid var(--gold-primary);color:var(--gold-light);padding:1px 6px;border-radius:4px;font-size:9px;font-weight:600;">🟡 LOW</span>';
+      impactClass = 'impact-med'; impactLabel = '🟠 MEDIUM';
     }
+    el.classList.add(impactClass);
 
     const dateObj = item.date ? new Date(item.date) : null;
     const thOpts = { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' };
     const timeStr = dateObj ? dateObj.toLocaleTimeString('th-TH', thOpts) : (item.time || 'ไม่ระบุเวลา');
     const dateStr = dateObj ? dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' }) : '';
 
+    const country = escapeHtml(item.country || 'USD');
+    const title = escapeHtml(item.title || '');
+    const forecast = escapeHtml(item.forecast || '-');
+    const previous = escapeHtml(item.previous || '-');
+    const actual = escapeHtml(item.actual || '-');
+
     el.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-weight:700;color:var(--gold-light);font-size:11px;">
-          <span style="background:rgba(255,255,255,0.1);padding:1px 5px;border-radius:3px;margin-right:4px;">${escapeHtml(item.country || 'USD')}</span> 
-          ${escapeHtml(item.title)}
+      <div class="news-item-top">
+        <div class="news-item-main">
+          <div class="news-country-chip">${country}</div>
+          <div class="news-item-title">${title}</div>
         </div>
-        <div>${impactBadge}</div>
+        <span class="news-impact-badge ${impactClass}">${impactLabel}</span>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;color:var(--text-muted);font-size:10px;">
-        <span>📅 ${dateStr} | ⏰ <strong>${escapeHtml(timeStr)} น.</strong></span>
-        <span id="news-cd-${index}" style="font-weight:700;color:var(--accent-cyan);">⏳ กำลังคำนวณ...</span>
+      <div class="news-item-meta">
+        <span class="news-meta-date">📅 ${dateStr}</span>
+        <span class="news-meta-time">⏰ <strong>${timeStr} น.</strong></span>
+        <span class="news-countdown" id="news-cd-${index}">⏳ กำลังคำนวณ...</span>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;color:var(--text-muted);font-size:10px;border-top:1px solid rgba(255,255,255,0.05);padding-top:3px;">
-        <span>คาดการณ์: <strong style="color:#fff;">${escapeHtml(item.forecast || '-')}</strong> | ครั้งก่อน: <strong style="color:#fff;">${escapeHtml(item.previous || '-')}</strong></span>
-        <span>ประกาศ: <strong style="color:var(--accent-green);">${escapeHtml(item.actual || '-')}</strong></span>
+      <div class="news-item-data">
+        <div class="news-data-cell">
+          <span class="news-data-label">คาดการณ์</span>
+          <span class="news-data-val">${forecast}</span>
+        </div>
+        <div class="news-data-cell">
+          <span class="news-data-label">ครั้งก่อน</span>
+          <span class="news-data-val">${previous}</span>
+        </div>
+        <div class="news-data-cell news-data-actual">
+          <span class="news-data-label">ประกาศ</span>
+          <span class="news-data-val">${actual}</span>
+        </div>
       </div>
     `;
     container.appendChild(el);

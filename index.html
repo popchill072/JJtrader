@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;700;800&family=Kanit:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logo.jpg">
-  <link rel="stylesheet" href="styles.css?v=53.0">
+  <link rel="stylesheet" href="styles.css?v=54.0">
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body>
@@ -349,29 +349,32 @@
       <!-- NEWS (prominent standalone card) -->
       <div class="card news-card">
         <div class="news-card-header">
-          <div class="card-title" style="font-size:15px;color:var(--gold-primary)">
-            <span>📰</span>
-            <span>ข่าวเศรษฐกิจ & ปฏิทิน Forex</span>
-          </div>
-          <span class="badge-live" style="color:var(--gold-light);font-size:9px;background:rgba(255,215,0,0.1);padding:2px 8px;border-radius:4px;border:1px solid var(--border-gold)">อัปเดตอัตโนมัติ</span>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;background:var(--bg-surface);padding:8px;border-radius:var(--radius-sm);border:1px solid var(--border-gold)">
-          <div style="display:flex;gap:4px;overflow-x:auto">
-            <button class="btn-tf news-period-btn" onclick="changeNewsPeriod('yesterday', this)" style="font-size:11px;padding:4px 10px">◀️ เมื่อวาน</button>
-            <button class="btn-tf news-period-btn" onclick="changeNewsPeriod('today', this)" style="font-size:11px;padding:4px 10px">📅 วันนี้</button>
-            <button class="btn-tf news-period-btn active" onclick="changeNewsPeriod('thisweek', this)" style="font-size:11px;padding:4px 10px">🗓️ สัปดาห์นี้</button>
-            <button class="btn-tf news-period-btn" onclick="changeNewsPeriod('nextweek', this)" style="font-size:11px;padding:4px 10px">⏩ สัปดาห์หน้า</button>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;font-size:10px">
-            <div style="display:flex;gap:4px">
-              <button class="btn-tf news-impact-btn active" onclick="filterNewsImpact('all', this)" style="font-size:10px;padding:3px 8px">ทั้งหมด</button>
-              <button class="btn-tf news-impact-btn" onclick="filterNewsImpact('high', this)" style="font-size:10px;padding:3px 8px;color:var(--accent-red)">🔴 High</button>
-              <button class="btn-tf news-impact-btn" onclick="filterNewsImpact('medium', this)" style="font-size:10px;padding:3px 8px;color:#ffa000">🟠 Medium</button>
+          <div class="news-title-wrap">
+            <div class="news-icon-badge">📰</div>
+            <div class="news-title-col">
+              <div class="card-title news-title-main">ข่าวเศรษฐกิจ & ปฏิทิน Forex</div>
+              <div class="news-subtitle">ForexFactory Economic Calendar</div>
             </div>
-            <button onclick="loadForexNews(true)" style="background:transparent;border:1px solid var(--border-gold);color:var(--gold-light);border-radius:4px;padding:3px 8px;font-size:10px;cursor:pointer" title="ดึงข้อมูลล่าสุด">🔄 Refresh</button>
+          </div>
+          <span class="news-live-badge"><span class="news-live-dot"></span>อัปเดตอัตโนมัติ</span>
+        </div>
+        <div class="news-toolbar">
+          <div class="news-period-group">
+            <button class="btn-tf news-period-btn" onclick="changeNewsPeriod('yesterday', this)">◀️ เมื่อวาน</button>
+            <button class="btn-tf news-period-btn" onclick="changeNewsPeriod('today', this)">📅 วันนี้</button>
+            <button class="btn-tf news-period-btn active" onclick="changeNewsPeriod('thisweek', this)">🗓️ สัปดาห์นี้</button>
+            <button class="btn-tf news-period-btn" onclick="changeNewsPeriod('nextweek', this)">⏩ สัปดาห์หน้า</button>
+          </div>
+          <div class="news-toolbar-right">
+            <div class="news-impact-group">
+              <button class="btn-tf news-impact-btn active" onclick="filterNewsImpact('all', this)">ทั้งหมด</button>
+              <button class="btn-tf news-impact-btn" onclick="filterNewsImpact('high', this)">🔴 High</button>
+              <button class="btn-tf news-impact-btn" onclick="filterNewsImpact('medium', this)">🟠 Medium</button>
+            </div>
+            <button class="news-refresh-btn" onclick="loadForexNews(true)" title="ดึงข้อมูลล่าสุด">🔄 Refresh</button>
           </div>
         </div>
-        <div id="news-list-container" style="max-height:380px;overflow-y:auto">
+        <div id="news-list-container" class="news-list-container">
           <div class="empty-state">⏳ กำลังโหลดตารางข่าวสาร...</div>
         </div>
       </div>
@@ -736,8 +739,8 @@
     <div class="chat-lightbox-close" onclick="closeChatLightbox()">✕</div>
   </div>
 
-  <script src="app.js?v=53.0"></script>
-  <script src="v11engine.js?v=53.0"></script>
+  <script src="app.js?v=54.0"></script>
+  <script src="v11engine.js?v=54.0"></script>
 
   <!-- Cloudflare Web Analytics -->
   <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "ed896493cd304caa97cd0809d973c369", "spa": true}'></script>
