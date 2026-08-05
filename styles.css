@@ -1181,17 +1181,17 @@ select.calc-input {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 7px 10px;
   margin-top: 4px;
-  background: linear-gradient(135deg, rgba(255,215,0,0.12), rgba(212,175,55,0.04));
-  border: 1px solid var(--border-gold);
-  border-radius: 10px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
 }
 .news-day-header:first-child { margin-top: 0; }
 .news-day-label {
   font-size: 12px;
   font-weight: 800;
-  color: var(--gold-light);
+  color: var(--text-main);
   font-family: var(--font-heading);
 }
 .news-day-count {
@@ -1210,32 +1210,25 @@ select.calc-input {
   gap: 10px;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
   transition: var(--transition-fast);
   overflow: hidden;
 }
-.news-item::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--gold-primary);
-  opacity: 0.75;
+.news-item.impact-high {
+  border-left: 3px solid var(--accent-red);
 }
-.news-item.impact-high::before { background: var(--accent-red); }
-.news-item.impact-med::before { background: var(--accent-orange); }
-.news-item.impact-low::before { background: var(--gold-primary); }
-
-.news-item.impact-high { border-color: rgba(255,82,82,0.25); }
-.news-item.impact-med { border-color: rgba(255,145,0,0.25); }
+.news-item.impact-med {
+  border-left: 3px solid var(--accent-orange);
+}
+.news-item.impact-low {
+  border-left: 3px solid var(--border-subtle);
+}
 
 .news-item:hover {
   border-color: var(--border-gold);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
 }
 
 .news-time-cell {
@@ -1253,9 +1246,9 @@ select.calc-input {
 }
 .news-country-chip {
   flex-shrink: 0;
-  background: linear-gradient(135deg, rgba(255,215,0,0.16), rgba(212,175,55,0.06));
-  border: 1px solid var(--border-gold);
-  color: var(--gold-light);
+  background: var(--bg-chip-border);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
   padding: 2px 7px;
   border-radius: 6px;
   font-size: 10px;
@@ -1306,7 +1299,7 @@ select.calc-input {
 
 .news-impact-badge {
   flex-shrink: 0;
-  width: 44px;
+  width: 42px;
   text-align: center;
   padding: 3px 6px;
   border-radius: 20px;
@@ -1315,19 +1308,19 @@ select.calc-input {
   letter-spacing: 0.4px;
 }
 .news-impact-badge.impact-high {
-  background: rgba(255,82,82,0.15);
-  border: 1px solid var(--accent-red);
+  background: rgba(255,82,82,0.12);
+  border: 1px solid rgba(255,82,82,0.4);
   color: var(--accent-red);
 }
 .news-impact-badge.impact-med {
-  background: rgba(255,145,0,0.15);
-  border: 1px solid var(--accent-orange);
+  background: rgba(255,145,0,0.12);
+  border: 1px solid rgba(255,145,0,0.4);
   color: var(--accent-orange);
 }
 .news-impact-badge.impact-low {
-  background: rgba(255,215,0,0.12);
-  border: 1px solid var(--border-gold);
-  color: var(--gold-light);
+  background: var(--bg-chip);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
 }
 
 .news-countdown {
@@ -1337,7 +1330,7 @@ select.calc-input {
   font-weight: 800;
   font-size: 10px;
   color: var(--accent-cyan);
-  background: rgba(0,229,255,0.08);
+  background: rgba(0,229,255,0.06);
   border: 1px solid rgba(0,229,255,0.2);
   padding: 3px 6px;
   border-radius: 20px;
