@@ -397,7 +397,7 @@ function initChartWidget(cfg, idx, tvUserId) {
     toolbar_bg: "#080a0f",
     enable_publishing: false,
     allow_symbol_change: true,
-    hide_side_toolbar: false,
+    hide_side_toolbar: window.innerWidth < 1024,
     withdateranges: true,
     save_image: true,
     auto_save_change: false,
@@ -414,11 +414,49 @@ function initChartWidget(cfg, idx, tvUserId) {
           chart.removeStudy(s.id);
         }
       });
+      // Restore previously saved drawings / chart state for this symbol + timeframe
+      const stateKey = chartStateKey(cfg);
+      const savedState = localStorage.getItem(stateKey);
+      if (savedState) {
+        try {
+          widget.load(savedState);
+        } catch (e) {
+          console.warn('Chart state load failed (' + cfg.id + '):', e);
+        }
+      }
     } catch (e) { console.error('Volume pane removal failed:', e); }
   });
+  // Auto-save drawings / chart state periodically so lines persist on reload
+  widget.__cfgIdx = idx;
+  clearInterval(widget.__stateSaveTimer);
+  widget.__stateSaveTimer = setInterval(() => {
+    try {
+      widget.save(s => {
+        if (s) localStorage.setItem(chartStateKey(CHART_TFS[widget.__cfgIdx]), s);
+      });
+    } catch (e) {}
+  }, 5000);
   widgetInstances[idx] = widget;
   return true;
 }
+
+function chartStateKey(cfg) {
+  const sym = String(currentSymbol || 'chart').replace(/[^a-zA-Z0-9]/g, '_');
+  return 'jj_chart_state_' + sym + '_' + cfg.interval;
+}
+
+function flushChartStates() {
+  widgetInstances.forEach(w => {
+    try {
+      if (!w || typeof w.save !== 'function') return;
+      w.save(s => {
+        if (s) localStorage.setItem(chartStateKey(CHART_TFS[w.__cfgIdx]), s);
+      });
+    } catch (e) {}
+  });
+}
+window.addEventListener('beforeunload', flushChartStates);
+window.addEventListener('pagehide', flushChartStates);
 
 function scheduleChartRetry(idx, tvUserId) {
   if (chartRetryCounters[idx] >= 3) return;
@@ -445,7 +483,10 @@ function verifyChartsLoaded(tvUserId) {
 }
 
 function renderMainChart() {
-  widgetInstances.forEach(w => { try { w.remove(); } catch(e) {} });
+  widgetInstances.forEach(w => {
+    try { if (w.__stateSaveTimer) clearInterval(w.__stateSaveTimer); } catch(e) {}
+    try { w.remove(); } catch(e) {}
+  });
   widgetInstances = [];
   Object.keys(chartRetryCounters).forEach(k => delete chartRetryCounters[k]);
 
@@ -719,10 +760,17 @@ function setChartLayout(layout, btnElement, save = true) {
 }
 
 function autoAdaptChartLayout() {
-  const isMobile = window.innerWidth <= 900;
+  const w = window.innerWidth;
+  const hasSaved = localStorage.getItem('jj_chart_layout') !== null;
   const saved = localStorage.getItem('jj_chart_layout') || 'grid';
   let layout = saved;
-  if (isMobile && ['horizontal', 'focus', 'feature'].includes(layout)) layout = 'vertical';
+  if (w <= 900) {
+    // Mobile/tablet portrait: stacked vertical charts
+    if (['horizontal', 'focus', 'feature'].includes(layout)) layout = 'vertical';
+  } else if (w <= 1300 && !hasSaved) {
+    // iPad landscape / small laptop: prefer 1 big chart + 3 small for clarity
+    layout = 'focus';
+  }
   setChartLayout(layout, null, false);
 }
 

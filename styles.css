@@ -611,9 +611,9 @@ html[data-theme="light"] body::before {
 @media (max-width: 900px) {
   .chart-section { height: auto; min-height: 0; }
   .chart-grid { grid-template-columns: 1fr; grid-template-rows: none; }
-  .chart-grid:not(.layout-grid) .chart-card { height: 360px; min-height: 360px; }
-  .chart-card { height: 360px; min-height: 360px; }
-  .chart-container-sm { min-height: 300px; }
+  .chart-grid:not(.layout-grid) .chart-card { height: 420px; min-height: 420px; }
+  .chart-card { height: 420px; min-height: 420px; }
+  .chart-container-sm { min-height: 360px; }
   .chart-grid.layout-focus, .chart-grid.layout-feature {
     grid-template-columns: 1fr;
     grid-template-rows: none;
@@ -622,6 +622,21 @@ html[data-theme="light"] body::before {
   .chart-grid.layout-focus .chart-card,
   .chart-grid.layout-feature .chart-card {
     grid-area: auto;
+  }
+}
+
+/* Medium screens (iPad landscape / small laptop): give charts more room */
+@media (min-width: 901px) and (max-width: 1300px) {
+  .chart-section { height: calc(100vh - 170px); }
+  /* feature layout collapses to 1 big left + 1 column of small */
+  .chart-grid.layout-feature {
+    grid-template-columns: 1.5fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    grid-template-areas: "big c1" "big c2";
+  }
+  .chart-grid.layout-feature .chart-card:nth-child(4) {
+    grid-area: auto;
+    display: none;
   }
 }
 
