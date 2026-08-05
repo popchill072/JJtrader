@@ -757,12 +757,12 @@ let v11RefreshId = null;
 
 // Timeframe options for the V11 engine (candle interval + Yahoo range)
 const V11_TF_OPTIONS = {
-  '1m': { label: '1 นาที', interval: '1m', range: '1d', refreshMs: 30000 },
-  '5m': { label: '5 นาที', interval: '5m', range: '5d', refreshMs: 60000 },
-  '15m': { label: '15 นาที', interval: '15m', range: '1mo', refreshMs: 90000 },
-  '30m': { label: '30 นาที', interval: '30m', range: '1mo', refreshMs: 120000 },
-  '1h': { label: '1 ชั่วโมง', interval: '60m', range: '3mo', refreshMs: 180000 },
-  '4h': { label: '4 ชั่วโมง', interval: '4h', range: '3mo', refreshMs: 300000 },
+  '1m': { label: '1 นาที', interval: '1m', range: '1d', refreshMs: 10000 },
+  '5m': { label: '5 นาที', interval: '5m', range: '5d', refreshMs: 15000 },
+  '15m': { label: '15 นาที', interval: '15m', range: '1mo', refreshMs: 20000 },
+  '30m': { label: '30 นาที', interval: '30m', range: '1mo', refreshMs: 30000 },
+  '1h': { label: '1 ชั่วโมง', interval: '60m', range: '3mo', refreshMs: 60000 },
+  '4h': { label: '4 ชั่วโมง', interval: '4h', range: '3mo', refreshMs: 120000 },
 };
 let v11Timeframe = localStorage.getItem('jj_v11_timeframe') || '5m';
 if (!V11_TF_OPTIONS[v11Timeframe]) v11Timeframe = '5m';
@@ -795,11 +795,13 @@ const V11_BINANCE_PAIRS = {
   'BTC': { pair: 'BTCUSDT', limit: 250 },
 };
 
+let v11FetchInFlight = false;
+
 async function fetchV11Candles() {
+  if (v11FetchInFlight) return;
+  v11FetchInFlight = true;
   const symKey = (SYMBOL_META[currentSymbol] ? currentSymbol.split(':').pop() : 'XAUUSD').toUpperCase();
   const sym = symKey.includes('XAG') ? 'XAG' : symKey.includes('DXY') ? 'DXY' : symKey.includes('USOIL') || symKey.includes('OIL') ? 'USOIL' : symKey.includes('BTC') ? 'BTC' : 'XAU';
-  if (v11CandleSymbol === sym) return;
-  v11CandleSymbol = sym;
   const tf = V11_TF_OPTIONS[v11Timeframe] || V11_TF_OPTIONS['5m'];
   try {
     let candles = null;
@@ -827,7 +829,24 @@ async function fetchV11Candles() {
       renderV11FibOverlay();
     }
   } catch (e) {}
+  finally { v11FetchInFlight = false; }
 }
+
+function triggerV11Rescan() {
+  // Reset swing reference so a fresh candle fetch recomputes everything
+  v11CandleSymbol = '';
+  v11Swing = null;
+  if (typeof v11ResetPosition === 'function') v11ResetPosition();
+  fetchV11Candles();
+  renderV11FibOverlay();
+}
+
+window.onV11PositionExit = function(hitLevel, livePrice, result) {
+  const levelText = hitLevel === 'SL' ? '🛑 SL โดนแล้ว' : `🎯 TP ${hitLevel.replace('TP', '')} ถึงแล้ว`;
+  showToast(`${levelText} @ $${(livePrice || 0).toFixed(2)} — สแกนสัญญาณใหม่...`);
+  sendPushNotification('V11 Signal', `${levelText} @ $${(livePrice || 0).toFixed(2)}`);
+  triggerV11Rescan();
+};
 
 function refreshV11Candles() {
   fetchV11Candles();

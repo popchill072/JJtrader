@@ -16,6 +16,49 @@ const V11_MAX_HISTORY = 300;
 // Latest computed reference exposed for the TradingView overlay
 let v11Swing = null;
 
+// Active V11 position + last result (for SL/TP hit tracking & auto rescan)
+let v11Position = null;   // { dir, entry, sl, tp1, tp2, tp3, openedAt }
+let v11LastResult = null; // { level, price, dir, at }
+let v11ExitedSwingKey = ''; // swing key of last closed position (no re-entry on same swing)
+let v11LastExitAt = 0;      // timestamp of last SL/TP exit (cooldown before re-entry)
+
+const V11_REENTRY_COOLDOWN_MS = 45000;
+
+function v11SwingKey(s) {
+  return s ? `${s.dHigh.toFixed(4)}|${s.dLow.toFixed(4)}|${s.isUp}` : '';
+}
+
+function v11ResetPosition() {
+  v11Position = null;
+}
+
+function v11OpenPosition(dir, entry, sl, tp1, tp2, tp3) {
+  v11Position = { dir, entry, sl, tp1, tp2, tp3, openedAt: Date.now() };
+}
+
+function v11CheckPositionHits(livePrice) {
+  if (!v11Position || !livePrice) return null;
+  const p = v11Position;
+  let hit = null;
+  if (p.dir === 'BUY') {
+    if (livePrice <= p.sl) hit = 'SL';
+    else if (livePrice >= p.tp3) hit = 'TP3';
+    else if (livePrice >= p.tp2) hit = 'TP2';
+    else if (livePrice >= p.tp1) hit = 'TP1';
+  } else {
+    if (livePrice >= p.sl) hit = 'SL';
+    else if (livePrice <= p.tp3) hit = 'TP3';
+    else if (livePrice <= p.tp2) hit = 'TP2';
+    else if (livePrice <= p.tp1) hit = 'TP1';
+  }
+  if (hit) {
+    v11LastResult = { level: hit, price: livePrice, dir: p.dir, at: Date.now() };
+    v11Position = null;
+    return hit;
+  }
+  return null;
+}
+
 function v11SetCandles(candles) {
   if (!Array.isArray(candles) || !candles.length) return;
   v11Candles = candles.slice(-V11_MAX_HISTORY);
@@ -70,13 +113,13 @@ function updateV11ProDashboard(livePrice) {
   if (lb < 5) {
     v11AddPriceTick(livePrice);
     // Show skeleton placeholders while waiting for enough data
-    ['v11-status-badge', 'v11-trend-badge', 'v11-signal-badge', 'v11-val-entry', 'v11-val-tp1', 'v11-val-tp2', 'v11-val-tp3', 'v11-val-sl', 'v11-val-ext161', 'v11-val-atr', 'v11-val-range', 'v11-val-live'].forEach(id => {
+    ['v11-status-badge', 'v11-trend-badge', 'v11-signal-badge', 'v11-val-entry', 'v11-val-tp1', 'v11-val-tp2', 'v11-val-tp3', 'v11-val-sl', 'v11-val-ext161', 'v11-val-atr', 'v11-val-range', 'v11-val-live', 'v11-val-position', 'v11-val-result'].forEach(id => {
       const el = document.getElementById(id);
       if (el && !el.classList.contains('skeleton')) el.classList.add('skeleton');
     });
     return;
   }
-  ['v11-status-badge', 'v11-trend-badge', 'v11-signal-badge', 'v11-val-entry', 'v11-val-tp1', 'v11-val-tp2', 'v11-val-tp3', 'v11-val-sl', 'v11-val-ext161', 'v11-val-atr', 'v11-val-range', 'v11-val-live'].forEach(id => {
+  ['v11-status-badge', 'v11-trend-badge', 'v11-signal-badge', 'v11-val-entry', 'v11-val-tp1', 'v11-val-tp2', 'v11-val-tp3', 'v11-val-sl', 'v11-val-ext161', 'v11-val-atr', 'v11-val-range', 'v11-val-live', 'v11-val-position', 'v11-val-result'].forEach(id => {
     const el = document.getElementById(id);
     if (el && el.classList.contains('skeleton')) el.classList.remove('skeleton');
   });
@@ -90,6 +133,13 @@ function updateV11ProDashboard(livePrice) {
   // ── Swing detection on candle high/low (matches ta.highest/ta.lowest) ──
   let dHigh, dLow, sRange;
   if (hasCandles) {
+    // Fold the live tick into the forming candle so swing/status are real-time
+    const lastC = v11Candles[v11Candles.length - 1];
+    if (lastC) {
+      if (livePrice > lastC.h) lastC.h = livePrice;
+      if (livePrice < lastC.l) lastC.l = livePrice;
+      lastC.c = livePrice;
+    }
     const recent = v11Candles.slice(-lb);
     dHigh = Math.max(...recent.map(c => c.h));
     dLow = Math.min(...recent.map(c => c.l));
@@ -193,6 +243,25 @@ function updateV11ProDashboard(livePrice) {
     signal = 'BIAS DOWN'; sigColor = 'var(--accent-red)'; sigEmoji = '↘️';
   }
 
+  // ── Position tracking + SL/TP auto-rescan ──
+  if ((signal === 'BUY' || signal === 'SELL') && !v11Position) {
+    // Cooldown after an exit + no re-entry on the same swing that just closed
+    const curKey = v11SwingKey(v11Swing);
+    const inCooldown = (Date.now() - v11LastExitAt) < V11_REENTRY_COOLDOWN_MS;
+    if (!inCooldown && (!v11ExitedSwingKey || curKey !== v11ExitedSwingKey)) {
+      v11OpenPosition(signal, entryR, slP, tp1, tp2, tp3);
+    }
+  }
+  const hitLevel = v11CheckPositionHits(livePrice);
+  if (hitLevel) {
+    const closedSwingKey = v11SwingKey(v11Swing);
+    v11ExitedSwingKey = closedSwingKey;
+    v11LastExitAt = Date.now();
+    if (typeof window.onV11PositionExit === 'function') {
+      window.onV11PositionExit(hitLevel, livePrice, v11LastResult);
+    }
+  }
+
   // ── Update HTML elements ──
   const statusEl = document.getElementById('v11-status-badge');
   const trendEl = document.getElementById('v11-trend-badge');
@@ -217,10 +286,6 @@ function updateV11ProDashboard(livePrice) {
     trendEl.textContent = trendLabel + (emaOk ? ' ✓ EMA' : ' ✗ EMA');
     trendEl.style.color = isUp ? 'var(--accent-green)' : 'var(--accent-red)';
   }
-  if (signalEl) {
-    signalEl.textContent = sigEmoji + ' ' + signal;
-    signalEl.style.color = sigColor;
-  }
   if (entryEl) entryEl.textContent = '$' + entryR.toFixed(2);
   if (tp1El) tp1El.textContent = '$' + tp1.toFixed(2);
   if (tp2El) tp2El.textContent = '$' + tp2.toFixed(2);
@@ -233,6 +298,37 @@ function updateV11ProDashboard(livePrice) {
   if (rrEl) {
     rrEl.textContent = '1:' + rr1.toFixed(2) + ' (TP1) | 1:' + rr3.toFixed(2) + ' (TP3)';
     rrEl.style.color = rr1 >= 1.5 ? 'var(--accent-green)' : rr1 >= 1.0 ? 'var(--gold-primary)' : 'var(--accent-red)';
+  }
+
+  // Position / result status
+  const posEl = document.getElementById('v11-val-position');
+  if (posEl) {
+    if (v11Position) {
+      const p = v11Position;
+      posEl.textContent = `${p.dir} @ ${p.entry.toFixed(2)} | SL ${p.sl.toFixed(2)} | TP1 ${p.tp1.toFixed(2)}`;
+      posEl.style.color = p.dir === 'BUY' ? 'var(--accent-green)' : 'var(--accent-red)';
+    } else {
+      posEl.textContent = '—';
+      posEl.style.color = 'var(--text-muted)';
+    }
+  }
+  const resEl = document.getElementById('v11-val-result');
+  if (resEl) {
+    if (v11LastResult) {
+      const r = v11LastResult;
+      const d = new Date(r.at);
+      const time = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      resEl.textContent = `${r.level} @ ${r.price.toFixed(2)} (${time})`;
+      resEl.style.color = r.level === 'SL' ? 'var(--accent-red)' : 'var(--accent-green)';
+    } else {
+      resEl.textContent = '—';
+      resEl.style.color = 'var(--text-muted)';
+    }
+  }
+  // Reflect active position in the signal badge
+  if (signalEl) {
+    signalEl.textContent = sigEmoji + ' ' + signal + (v11Position ? ' ▶' : '');
+    signalEl.style.color = sigColor;
   }
 
   // Fib level table (full set, user-configurable)
