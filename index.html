@@ -12,7 +12,13 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;700;800&family=Kanit:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logo.jpg">
-  <link rel="stylesheet" href="styles.css?v=59.0">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#080a0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="JJ Trader">
+  <link rel="apple-touch-icon" href="icons/icon-192.svg">
+  <link rel="stylesheet" href="styles.css?v=60.0">
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body>
@@ -105,13 +111,7 @@
 
   <!-- TOOLBAR -->
   <div class="toolbar-container">
-    <div class="asset-selector">
-      <button class="btn-asset active" onclick="changeSymbol('OANDA:XAUUSD', 'ทองคำ (Gold Spot)', this)"><span>👑</span>XAU/USD (Gold)</button>
-      <button class="btn-asset" onclick="changeSymbol('OANDA:XAGUSD', 'เงิน (Silver Spot)', this)"><span>🥈</span>XAG/USD (Silver)</button>
-      <button class="btn-asset" onclick="changeSymbol('CAPITALCOM:DXY', 'ดัชนีดอลลาร์ (DXY)', this)"><span>💵</span>DXY</button>
-      <button class="btn-asset" onclick="changeSymbol('TVC:USOIL', 'น้ำมันดิบ (US Oil)', this)"><span>🛢️</span>US Oil</button>
-      <button class="btn-asset" onclick="changeSymbol('BINANCE:BTCUSDT', 'บิตคอยน์ (Bitcoin)', this)"><span>₿</span>BTC/USD</button>
-    </div>
+    <div class="asset-selector" id="asset-selector"></div>
     <div class="asset-price-badge" id="asset-price-badge" title="ราคาสดปัจจุบัน">--</div>
     <div class="timeframe-selector">
       <span class="tf-label">📈 4 กราฟ:</span>
@@ -235,6 +235,8 @@
           </div>
           <span class="badge-live" style="color:var(--gold-light);font-size:9px;background:rgba(255,215,0,0.1);padding:2px 8px;border-radius:4px;border:1px solid var(--border-gold)">ALGO SIGNAL</span>
           <button type="button" class="btn-indicator" onclick="shareV11Signal()" title="ส่งสัญญาณ V11 ปัจจุบันไปที่แชททีม" style="font-size:11px;padding:2px 8px">📤 แชร์สัญญาณ</button>
+          <button type="button" class="btn-indicator" id="v11-backtest-btn" onclick="runV11BacktestUI()" title="เทสต์ย้อนหลังสัญญาณ V11 บนข้อมูล kline" style="font-size:11px;padding:2px 8px">📊 Backtest</button>
+          <button type="button" class="btn-indicator voice-toggle-btn" onclick="toggleVoiceEnabled(this)" title="เปิด/ปิดเสียงประกาศสัญญาณ" style="font-size:11px;padding:2px 8px">🗣️ เสียง</button>
         </div>
 
         <div class="v11-grid">
@@ -739,8 +741,15 @@
     <div class="chat-lightbox-close" onclick="closeChatLightbox()">✕</div>
   </div>
 
-  <script src="app.js?v=59.0"></script>
-  <script src="v11engine.js?v=59.0"></script>
+  <script src="app.js?v=60.0"></script>
+  <script src="v11engine.js?v=60.0"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(e => console.warn('SW registration failed:', e));
+      });
+    }
+  </script>
 
   <!-- Cloudflare Web Analytics -->
   <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "ed896493cd304caa97cd0809d973c369", "spa": true}'></script>

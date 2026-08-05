@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1117"/>
+      <stop offset="1" stop-color="#05070a"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffd700"/>
+      <stop offset="1" stop-color="#b8860b"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="176" height="176" rx="36" fill="url(#bg)" stroke="#ffd700" stroke-width="6"/>
+  <polyline points="34,120 68,86 100,104 158,44" fill="none" stroke="url(#gold)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="34,136 60,112 96,128 158,64" fill="none" stroke="#e6e6e6" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+  <text x="96" y="166" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="#ffd700" text-anchor="middle">JJ TRADER</text>
+</svg>

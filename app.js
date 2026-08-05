@@ -341,6 +341,7 @@ function hideLoginOverlay() {
 
 // ── INIT APP AFTER LOGIN ───────────────────────────────
 function initApp() {
+  try { renderWatchlist(); } catch (e) { console.error(e); }
   try { autoAdaptChartLayout(); } catch (e) { console.error(e); }
   try { renderMainChart(); } catch (e) { console.error(e); }
   try { renderTechnicalGauge(); } catch (e) { console.error(e); }
@@ -397,7 +398,7 @@ function initChartWidget(cfg, idx, tvUserId) {
     toolbar_bg: "#080a0f",
     enable_publishing: false,
     allow_symbol_change: true,
-    hide_side_toolbar: window.innerWidth < 1024,
+    hide_side_toolbar: false,
     withdateranges: true,
     save_image: true,
     auto_save_change: false,
@@ -775,13 +776,25 @@ function autoAdaptChartLayout() {
 }
 
 // ── PREFERENCES (Cloud) ────────────────────────────────
-const SYMBOL_META = {
-  'OANDA:XAUUSD': { label: '👑 XAU/USD (Gold)', short: 'XAU/USD (Gold)' },
-  'OANDA:XAGUSD': { label: '🥈 XAG/USD (Silver)', short: 'XAG/USD (Silver)' },
-  'CAPITALCOM:DXY': { label: '💵 DXY', short: 'DXY' },
-  'TVC:USOIL': { label: '🛢️ US Oil', short: 'US Oil' },
-  'BINANCE:BTCUSDT': { label: '₿ BTC/USD', short: 'BTC/USD' },
-};
+const ALL_SYMBOLS = [
+  { id: 'OANDA:XAUUSD', label: '👑 XAU/USD (Gold)', short: 'XAU/USD (Gold)' },
+  { id: 'OANDA:XAGUSD', label: '🥈 XAG/USD (Silver)', short: 'XAG/USD (Silver)' },
+  { id: 'CAPITALCOM:DXY', label: '💵 DXY', short: 'DXY' },
+  { id: 'TVC:USOIL', label: '🛢️ US Oil', short: 'US Oil' },
+  { id: 'BINANCE:BTCUSDT', label: '₿ BTC/USD', short: 'BTC/USD' },
+  { id: 'BINANCE:ETHUSDT', label: '⬛ ETH/USD', short: 'ETH/USD' },
+  { id: 'FX:EURUSD', label: '🇪🇺 EUR/USD', short: 'EUR/USD' },
+  { id: 'FX:GBPUSD', label: '🇬🇧 GBP/USD', short: 'GBP/USD' },
+  { id: 'FX:USDJPY', label: '🇯🇵 USD/JPY', short: 'USD/JPY' },
+  { id: 'FX:AUDUSD', label: '🇦🇺 AUD/USD', short: 'AUD/USD' },
+  { id: 'CAPITALCOM:NAS100', label: '📈 NAS100', short: 'NAS100' },
+  { id: 'CAPITALCOM:SPX500', label: '📊 S&P 500', short: 'SPX500' },
+  { id: 'CAPITALCOM:US30', label: '🏛️ Dow 30', short: 'US30' },
+  { id: 'TVC:UKOIL', label: '🛢️ UK Brent', short: 'UK Oil' },
+];
+
+const SYMBOL_META = {};
+ALL_SYMBOLS.forEach(s => { SYMBOL_META[s.id] = { label: s.label, short: s.short }; });
 
 function applySymbolToCharts() {
   const meta = SYMBOL_META[currentSymbol];
@@ -795,6 +808,66 @@ function applySymbolToCharts() {
     const onclick = btn.getAttribute('onclick') || '';
     if (onclick.includes(currentSymbol)) btn.classList.add('active');
   });
+}
+
+// ── WATCHLIST (user-managed symbol set) ────────────────
+const WATCHLIST_KEY = 'jj_watchlist';
+let userWatchlist = loadWatchlist();
+
+function loadWatchlist() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(WATCHLIST_KEY) || 'null');
+    if (Array.isArray(saved) && saved.length) {
+      return saved.filter(id => ALL_SYMBOLS.some(s => s.id === id));
+    }
+  } catch (e) {}
+  return ALL_SYMBOLS.slice(0, 5).map(s => s.id);
+}
+
+function saveWatchlist() {
+  localStorage.setItem(WATCHLIST_KEY, JSON.stringify(userWatchlist));
+  renderWatchlist();
+}
+
+function renderWatchlist() {
+  const container = document.getElementById('asset-selector');
+  if (!container) return;
+  const activeSymbol = currentSymbol;
+  let html = '';
+  userWatchlist.forEach(id => {
+    const meta = SYMBOL_META[id] || { short: id, label: id };
+    const title = meta.label;
+    const isActive = id === activeSymbol ? ' active' : '';
+    html += `<button class="btn-asset${isActive}" onclick="changeSymbol('${id}', '${title}', this)" title="${title}"><span>${title.split(' ')[0]}</span>${meta.short}</button>`;
+  });
+  html += `<div class="watchlist-add">
+    <select id="watchlist-add-select" onchange="addWatchlistSymbol(this.value); this.value='';" title="เพิ่มสินทรัพย์เข้าชุดดูกราฟ">
+      <option value="">＋ เพิ่ม...</option>
+      ${ALL_SYMBOLS.filter(s => !userWatchlist.includes(s.id)).map(s => `<option value="${s.id}">${s.label}</option>`).join('')}
+    </select>
+    <button class="btn-asset watchlist-remove" onclick="removeWatchlistSymbol('${activeSymbol}')" title="ลบสินทรัพย์ปัจจุบันออกจากชุดดูกราฟ">✕</button>
+  </div>`;
+  container.innerHTML = html;
+}
+
+function addWatchlistSymbol(id) {
+  if (!id || userWatchlist.includes(id)) return;
+  userWatchlist.push(id);
+  saveWatchlist();
+  showToast(`✅ เพิ่ม ${SYMBOL_META[id]?.short || id} เข้า Watchlist แล้ว`);
+  changeSymbol(id, SYMBOL_META[id]?.label || id, null);
+}
+
+function removeWatchlistSymbol(id) {
+  if (userWatchlist.length <= 1) {
+    showToast('⚠️ ต้องเหลืออย่างน้อย 1 สินทรัพย์ใน Watchlist ครับ');
+    return;
+  }
+  userWatchlist = userWatchlist.filter(s => s !== id);
+  const next = userWatchlist[0];
+  saveWatchlist();
+  showToast(`🗑️ ลบ ${SYMBOL_META[id]?.short || id} ออกจาก Watchlist แล้ว`);
+  if (currentSymbol === id) changeSymbol(next, SYMBOL_META[next]?.label || next, null);
 }
 
 // ── V11 CANDLE DATA ────────────────────────────────────
@@ -889,10 +962,125 @@ function triggerV11Rescan() {
   renderV11FibOverlay();
 }
 
+// ── V11 BACKTEST UI ────────────────────────────────────
+let v11BacktestInFlight = false;
+
+async function runV11BacktestUI() {
+  const btn = document.getElementById('v11-backtest-btn');
+  if (v11BacktestInFlight) return;
+  v11BacktestInFlight = true;
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ เทสต์กำลังทำงาน...'; }
+
+  const symKey = (SYMBOL_META[currentSymbol] ? currentSymbol.split(':').pop() : 'XAUUSD').toUpperCase();
+  const sym = symKey.includes('XAG') ? 'XAG' : symKey.includes('DXY') ? 'DXY' : symKey.includes('USOIL') || symKey.includes('OIL') ? 'USOIL' : symKey.includes('BTC') ? 'BTC' : 'XAU';
+  const tf = V11_TF_OPTIONS[v11Timeframe] || V11_TF_OPTIONS['5m'];
+
+  try {
+    let candles = null;
+    // Binance gives deep history for XAU/BTC
+    const binance = V11_BINANCE_PAIRS[sym];
+    if (binance) {
+      const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${binance.pair}&interval=${tf.interval}&limit=1000`);
+      if (res.ok) {
+        const k = await res.json();
+        if (Array.isArray(k) && k.length) {
+          candles = k.map(row => ({ t: Math.floor(row[0] / 1000), o: parseFloat(row[1]), h: parseFloat(row[2]), l: parseFloat(row[3]), c: parseFloat(row[4]) }));
+        }
+      }
+    }
+    if (!candles) {
+      const range = tf.interval === '1m' ? '5d' : tf.interval === '5m' ? '1mo' : tf.interval === '15m' ? '3mo' : '6mo';
+      const res = await fetch(`${API_BASE}/api/candles?symbol=${sym}&interval=${tf.interval}&range=${range}`);
+      if (res.ok) {
+        const data = await res.json();
+        candles = Array.isArray(data.candles) ? data.candles : null;
+      }
+    }
+    if (!candles || candles.length < 100) {
+      showToast('❌ ข้อมูลย้อนหลังไม่พอสำหรับการเทสต์ (ต้องอย่างน้อย 100 แท่ง)');
+      return;
+    }
+    const result = runV11Backtest(candles, {
+      lookback: V11_CONFIG.lookback,
+      emaFast: V11_CONFIG.emaFast,
+      emaSlow: V11_CONFIG.emaSlow,
+      fibEntry: V11_CONFIG.fibEntry,
+      fibTp1: V11_CONFIG.fibTp1,
+      fibTp3: V11_CONFIG.fibTp3,
+      slPercent: V11_CONFIG.slPercent,
+    });
+    renderV11BacktestResult(result, candles.length, tf.label, sym);
+  } catch (e) {
+    console.error('V11 backtest failed:', e);
+    showToast('❌ เทสต์ย้อนหลังล้มเหลว กรุณาลองใหม่ครับ');
+  } finally {
+    v11BacktestInFlight = false;
+    if (btn) { btn.disabled = false; btn.textContent = '📊 Backtest'; }
+  }
+}
+
+function renderV11BacktestResult(res, bars, tfLabel, sym) {
+  const existing = document.getElementById('v11-backtest-modal');
+  if (existing) existing.remove();
+
+  const pf = Number.isFinite(res.profitFactor) && res.profitFactor !== Infinity ? res.profitFactor.toFixed(2) : '∞';
+  const rows = res.trades.slice(-20).reverse().map(t => {
+    const icon = t.hit === 'SL' ? '🔴' : '🟢';
+    return `<div class="bt-row">
+      <span class="bt-dir ${t.dir === 'BUY' ? 'bt-buy' : 'bt-sell'}">${t.dir}</span>
+      <span>${t.hit === 'SL' ? 'SL' : t.hit}</span>
+      <span>${t.rMulti >= 0 ? '+' : ''}${t.rMulti.toFixed(2)}R</span>
+    </div>`;
+  }).join('') || '<div class="bt-row muted">ไม่มีสัญญาณในช่วงข้อมูลนี้</div>';
+
+  const modal = document.createElement('div');
+  modal.id = 'v11-backtest-modal';
+  modal.className = 'bt-modal-overlay';
+  modal.innerHTML = `
+    <div class="bt-modal" onclick="event.stopPropagation()">
+      <div class="bt-head">
+        <div>
+          <div class="bt-title">📊 Backtest สัญญาณ V11</div>
+          <div class="bt-sub">${sym} · ${tfLabel} · ${bars} แท่ง</div>
+        </div>
+        <button class="bt-close" onclick="closeV11BacktestModal()">✕</button>
+      </div>
+      <div class="bt-stats">
+        <div class="bt-stat"><span class="bt-stat-val">${res.totalTrades}</span><span class="bt-stat-label">เทรด</span></div>
+        <div class="bt-stat"><span class="bt-stat-val" style="color:${res.winRate >= 50 ? 'var(--accent-green)' : 'var(--accent-red)'}">${res.winRate.toFixed(1)}%</span><span class="bt-stat-label">Win Rate</span></div>
+        <div class="bt-stat"><span class="bt-stat-val" style="color:${res.totalR >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}">${res.totalR >= 0 ? '+' : ''}${res.totalR.toFixed(1)}R</span><span class="bt-stat-label">รวม R</span></div>
+        <div class="bt-stat"><span class="bt-stat-val">${pf}</span><span class="bt-stat-label">PF</span></div>
+      </div>
+      <div class="bt-stats bt-stats-sm">
+        <div class="bt-stat"><span>ชนะ ${res.wins} / แพ้ ${res.losses}</span></div>
+        <div class="bt-stat"><span>Max DD ${res.maxDrawdown.toFixed(1)}%</span></div>
+        <div class="bt-stat"><span>Avg R ${res.avgR.toFixed(2)}</span></div>
+        <div class="bt-stat"><span>Avg ${res.avgBarsHeld.toFixed(0)} แท่ง/เทรด</span></div>
+      </div>
+      <div class="bt-list">${rows}</div>
+      <div class="bt-foot">⚠️ ผลย้อนหลังไม่รับประกันผลในอนาคต · ขนาด 1R ต่อ 1 เทรด</div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', () => closeV11BacktestModal());
+}
+
+function closeV11BacktestModal() {
+  const el = document.getElementById('v11-backtest-modal');
+  if (el) el.remove();
+}
+
+window.onV11Signal = function(signal, entry, sl, tp1, price) {
+  const dirText = signal === 'BUY' ? 'ซื้อ' : 'ขาย';
+  const zoneText = signal === 'BUY' ? 'โซนซื้อ' : 'โซนขาย';
+  speakAnnouncement(`สัญญาณ V11, ${dirText}! ราคาเข้า ${(entry || 0).toFixed(2)}, เป้าหมายแรก ${(tp1 || 0).toFixed(2)}`);
+};
+
 window.onV11PositionExit = function(hitLevel, livePrice, result) {
   const levelText = hitLevel === 'SL' ? '🛑 SL โดนแล้ว' : `🎯 TP ${hitLevel.replace('TP', '')} ถึงแล้ว`;
   showToast(`${levelText} @ $${(livePrice || 0).toFixed(2)} — สแกนสัญญาณใหม่...`);
   sendPushNotification('V11 Signal', `${levelText} @ $${(livePrice || 0).toFixed(2)}`);
+  const speak = hitLevel === 'SL' ? 'ตัดขาดทุน! stop loss โดนแล้ว' : `เป้าหมายกำไร ${hitLevel.replace('TP', '')} ถึงแล้ว`;
+  speakAnnouncement(`V11, ${speak}`);
   triggerV11Rescan();
 };
 
@@ -1375,6 +1563,7 @@ function updateNewsCountdowns() {
         playAlertAudio();
         showToast(`🚨 เตือนด่วน! ข่าว ${item.title} (${item.country || 'USD'}) กำลังจะออกในอีก 5 นาที!`);
         sendPushNotification('📰 JJ TRADER ข่าวด่วน!', `${item.title} (${item.country || 'USD'}) กำลังจะออกในอีก 5 นาที!`);
+        speakAnnouncement(`ข่าวด่วน! ${item.title} กำลังจะออกในอีก 5 นาที`);
       }
 
     } else if (diff >= -30 * 60 * 1000) {
@@ -1633,6 +1822,7 @@ function evaluateAlert(alert, currentPrice) {
     const symLabel = alert.symbol || 'XAUUSD';
     showToast(`🚨 ALERT! ${symLabel} แตะเป้าหมาย $${target.toFixed(2)} แล้ว (ราคาปัจจุบัน $${currentPrice.toFixed(2)})`);
     sendPushNotification('🚨 JJ TRADER ALERT!', `${symLabel} แตะเป้าหมาย $${target.toFixed(2)} (ราคาปัจจุบัน $${currentPrice.toFixed(2)})`);
+    speakAnnouncement(`แจ้งเตือนราคา! ${symLabel} แตะเป้าหมาย ${target.toFixed(2)} แล้ว`);
   } else {
     // Re-arm when price clearly moved away from the target
     const away = alert.condition === 'above' ? currentPrice <= (target - buffer) : currentPrice >= (target + buffer);
@@ -1704,6 +1894,64 @@ function unlockChatAudio() {
 document.addEventListener('click', unlockChatAudio, { once: false });
 document.addEventListener('touchstart', unlockChatAudio, { once: false });
 document.addEventListener('keydown', unlockChatAudio, { once: false });
+
+// ── VOICE ANNOUNCEMENTS (speechSynthesis) ───────────────
+let voiceEnabled = localStorage.getItem('jj_voice_enabled') === '1';
+let voiceRate = parseFloat(localStorage.getItem('jj_voice_rate') || '0.95');
+
+function voiceSupported() {
+  return typeof window !== 'undefined' && 'speechSynthesis' in window;
+}
+
+function pickThaiVoice() {
+  try {
+    const voices = speechSynthesis.getVoices();
+    return voices.find(v => /th(-|_)?TH/i.test(v.lang)) || voices.find(v => v.lang && v.lang.toLowerCase().startsWith('th')) || null;
+  } catch (e) { return null; }
+}
+
+function speakAnnouncement(text, priority = false) {
+  if (!voiceEnabled || !voiceSupported()) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    const thVoice = pickThaiVoice();
+    if (thVoice) {
+      u.voice = thVoice;
+      u.lang = thVoice.lang;
+    } else {
+      u.lang = 'en-US';
+    }
+    u.rate = voiceRate;
+    u.pitch = 1;
+    u.volume = 1;
+    speechSynthesis.speak(u);
+  } catch (e) { console.warn('Voice announcement failed:', e); }
+}
+
+function toggleVoiceEnabled(btnElement) {
+  voiceEnabled = !voiceEnabled;
+  localStorage.setItem('jj_voice_enabled', voiceEnabled ? '1' : '0');
+  if (btnElement) {
+    btnElement.classList.toggle('off', !voiceEnabled);
+    btnElement.textContent = voiceEnabled ? '🗣️ เสียง' : '🔇 เสียง';
+    btnElement.title = voiceEnabled ? 'เสียงประกาศเปิดอยู่' : 'เสียงประกาศปิดอยู่';
+  }
+  if (voiceEnabled) speakAnnouncement('เปิดเสียงประกาศแล้ว');
+  return voiceEnabled;
+}
+
+function updateVoiceUIs() {
+  document.querySelectorAll('.voice-toggle-btn').forEach(btn => {
+    btn.classList.toggle('off', !voiceEnabled);
+    btn.textContent = voiceEnabled ? '🗣️ เสียง' : '🔇 เสียง';
+    btn.title = voiceEnabled ? 'เสียงประกาศเปิดอยู่' : 'เสียงประกาศปิดอยู่';
+  });
+}
+document.addEventListener('DOMContentLoaded', updateVoiceUIs);
+if (voiceSupported() && speechSynthesis.getVoices().length === 0) {
+  speechSynthesis.onvoiceschanged = () => {};
+}
 
 function tone(freq, dur, type = 'sine', vol = 0.12) {
   try {

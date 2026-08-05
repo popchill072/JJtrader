@@ -250,6 +250,9 @@ function updateV11ProDashboard(livePrice) {
     const inCooldown = (Date.now() - v11LastExitAt) < V11_REENTRY_COOLDOWN_MS;
     if (!inCooldown && (!v11ExitedSwingKey || curKey !== v11ExitedSwingKey)) {
       v11OpenPosition(signal, entryR, slP, tp1, tp2, tp3);
+      if (typeof window.onV11Signal === 'function') {
+        window.onV11Signal(signal, entryR, slP, tp1, livePrice);
+      }
     }
   }
   const hitLevel = v11CheckPositionHits(livePrice);
@@ -363,4 +366,139 @@ function v11SetFibLevels(pcts, entryPct, tp1Pct, tp3Pct) {
   V11_CONFIG.fibTp1 = norm(tp1Pct, V11_CONFIG.fibTp1);
   V11_CONFIG.fibTp3 = norm(tp3Pct, V11_CONFIG.fibTp3);
   return V11_CONFIG.fibLevels;
+}
+
+// ── V11 BACKTEST (walk-forward, no lookahead bias) ─────
+// Simulates the V11 engine over historical candles:
+// swing from the last `lookback` bars BEFORE the signal candle,
+// entry on candle close, then SL/TP scanned on subsequent candles.
+function runV11Backtest(candles, opts) {
+  const o = opts || {};
+  const lb = o.lookback || V11_CONFIG.lookback;
+  const emaFast = o.emaFast || V11_CONFIG.emaFast;
+  const emaSlow = o.emaSlow || V11_CONFIG.emaSlow;
+  const fibEntry = o.fibEntry ?? V11_CONFIG.fibEntry;
+  const fibTp1 = o.fibTp1 ?? V11_CONFIG.fibTp1;
+  const fibTp3 = o.fibTp3 ?? V11_CONFIG.fibTp3;
+  const slPercent = o.slPercent ?? V11_CONFIG.slPercent;
+  const list = Array.isArray(candles) ? candles : [];
+
+  const trades = [];
+  let pos = null; // { dir, entry, sl, tp1, tp2, tp3 }
+
+  for (let i = lb; i < list.length; i++) {
+    const history = list.slice(i - lb, i + 1); // includes current candle for swing
+    const closes = history.map(c => c.c);
+    const fast = v11CalcEMA(closes, emaFast);
+    const slow = v11CalcEMA(closes, emaSlow);
+    const atrVal = v11CalcATR(history, V11_CONFIG.atrLength);
+
+    const dHigh = Math.max(...history.map(c => c.h));
+    const dLow = Math.min(...history.map(c => c.l));
+    const sRange = dHigh - dLow;
+    if (sRange <= 0) continue;
+
+    let hAge = -1, lAge = -1;
+    for (let j = 0; j < history.length; j++) {
+      if (history[j].h === dHigh) hAge = j;
+      if (history[j].l === dLow) lAge = j;
+    }
+    const isUp = lAge > hAge;
+    const emaOk = (isUp && fast > slow) || (!isUp && fast < slow);
+
+    const fibOf = (pct) => isUp ? dHigh - sRange * (pct / 100) : dLow + sRange * (pct / 100);
+    const z1Hi = isUp ? dHigh - sRange * 0.618 : dLow + sRange * 0.700;
+    const z1Lo = isUp ? dHigh - sRange * 0.700 : dLow + sRange * 0.618;
+    const z2Hi = isUp ? dHigh - sRange * 0.786 : dLow + sRange * 0.850;
+    const z2Lo = isUp ? dHigh - sRange * 0.850 : dLow + sRange * 0.786;
+    const entryR = fibOf(fibEntry);
+    const tp1 = fibOf(fibTp1);
+    const tp2 = fibOf(23.6);
+    const tp3 = isUp ? dHigh : dLow;
+    const slP = isUp ? dLow - sRange * (slPercent / 100) : dHigh + sRange * (slPercent / 100);
+
+    const bar = list[i];
+    const barLow = bar.l, barHigh = bar.h, barClose = bar.c;
+    const inZ2 = isUp ? (barLow <= z2Hi && barLow >= z2Lo) : (barHigh >= z2Lo && barHigh <= z2Hi);
+    const inZ1 = isUp ? (barLow <= z1Hi && barLow >= z1Lo) : (barHigh >= z1Lo && barHigh <= z1Hi);
+    const nearZ1 = isUp ? (barClose <= z1Hi + atrVal) : (barClose >= z1Lo - atrVal);
+    const inEntryZone = inZ2 || inZ1 || nearZ1;
+    const signal = (emaOk && inEntryZone) ? (isUp ? 'BUY' : 'SELL') : null;
+
+    // If no open position and signal fires -> open at current close
+    if (!pos && signal) {
+      pos = { dir: signal, entry: barClose, sl: slP, tp1, tp2, tp3, openAt: i };
+      continue;
+    }
+    // Scan for SL/TP on subsequent candles
+    if (pos) {
+      const p = pos;
+      let done = false;
+      for (let k = i; k < list.length && !done; k++) {
+        const kb = list[k];
+        let hit = null;
+        if (p.dir === 'BUY') {
+          if (kb.l <= p.sl) hit = 'SL';
+          else if (kb.h >= p.tp3) hit = 'TP3';
+          else if (kb.h >= p.tp2) hit = 'TP2';
+          else if (kb.h >= p.tp1) hit = 'TP1';
+        } else {
+          if (kb.h >= p.sl) hit = 'SL';
+          else if (kb.l <= p.tp3) hit = 'TP3';
+          else if (kb.l <= p.tp2) hit = 'TP2';
+          else if (kb.l <= p.tp1) hit = 'TP1';
+        }
+        if (hit) {
+          const risk = Math.abs(p.entry - p.sl);
+          let rMulti = 0;
+          if (risk > 0) {
+            if (hit === 'SL') rMulti = -1;
+            else if (hit === 'TP1') rMulti = Math.abs(p.tp1 - p.entry) / risk;
+            else if (hit === 'TP2') rMulti = Math.abs(p.tp2 - p.entry) / risk;
+            else if (hit === 'TP3') rMulti = Math.abs(p.tp3 - p.entry) / risk;
+          }
+          trades.push({ dir: p.dir, entry: p.entry, exitPrice: hit === 'SL' ? p.sl : (hit === 'TP1' ? p.tp1 : hit === 'TP2' ? p.tp2 : p.tp3), hit, rMulti, barsHeld: k - p.openAt, openAt: p.openAt, closeAt: k });
+          pos = null;
+          done = true;
+          i = k; // continue scanning after the exit candle
+        }
+      }
+      if (pos && !done) { pos = null; } // position never resolved before data end
+    }
+  }
+
+  // Summary stats
+  const wins = trades.filter(t => t.hit !== 'SL');
+  const losses = trades.filter(t => t.hit === 'SL');
+  const totalR = trades.reduce((a, t) => a + t.rMulti, 0);
+  const grossWin = wins.reduce((a, t) => a + t.rMulti, 0);
+  const grossLoss = Math.abs(losses.reduce((a, t) => a + t.rMulti, 0));
+  const equity = [];
+  let bal = 0;
+  trades.forEach(t => { bal += t.rMulti; equity.push(bal); });
+
+  return {
+    totalTrades: trades.length,
+    wins: wins.length,
+    losses: losses.length,
+    winRate: trades.length ? (wins.length / trades.length * 100) : 0,
+    totalR,
+    avgR: trades.length ? totalR / trades.length : 0,
+    profitFactor: grossLoss > 0 ? grossWin / grossLoss : (grossWin > 0 ? Infinity : 0),
+    maxDrawdown: maxDrawdownPct(equity),
+    bestTrade: trades.length ? Math.max(...trades.map(t => t.rMulti)) : 0,
+    worstTrade: trades.length ? Math.min(...trades.map(t => t.rMulti)) : 0,
+    avgBarsHeld: trades.length ? trades.reduce((a, t) => a + t.barsHeld, 0) / trades.length : 0,
+    trades,
+  };
+}
+
+function maxDrawdownPct(equity) {
+  let peak = 0, maxDD = 0;
+  for (const v of equity) {
+    if (v > peak) peak = v;
+    const dd = peak > 0 ? (peak - v) / Math.abs(peak) : 0;
+    if (dd > maxDD) maxDD = dd;
+  }
+  return maxDD * 100;
 }
