@@ -1201,59 +1201,86 @@ function renderNewsListWithCountdown() {
     return;
   }
 
-  filtered.slice(0, 30).forEach((item, index) => {
-    const el = document.createElement('div');
-    el.className = 'news-item';
+  const list = filtered.slice(0, 30);
 
-    const impactUpper = (item.impact || 'low').toLowerCase();
-    let impactClass = 'impact-low', impactLabel = '🟡 LOW';
-    if (impactUpper.includes('high') || impactUpper.includes('red')) {
-      impactClass = 'impact-high'; impactLabel = '🔴 HIGH (ข่าวแรง)';
-    } else if (impactUpper.includes('med') || impactUpper.includes('orange')) {
-      impactClass = 'impact-med'; impactLabel = '🟠 MEDIUM';
+  // Group events by day (Bangkok timezone) for a calendar-style layout
+  const dayKey = (d) => {
+    const dt = d ? new Date(d) : null;
+    if (!dt || isNaN(dt.getTime())) return '__no_date__';
+    return dt.toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+  };
+  const groups = [];
+  const groupMap = new Map();
+  list.forEach(item => {
+    const key = dayKey(item.date);
+    if (!groupMap.has(key)) {
+      const g = { key, items: [] };
+      groupMap.set(key, g);
+      groups.push(g);
     }
-    el.classList.add(impactClass);
+    groupMap.get(key).items.push(item);
+  });
 
-    const dateObj = item.date ? new Date(item.date) : null;
-    const thOpts = { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' };
-    const timeStr = dateObj ? dateObj.toLocaleTimeString('th-TH', thOpts) : (item.time || 'ไม่ระบุเวลา');
-    const dateStr = dateObj ? dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' }) : '';
-
-    const country = escapeHtml(item.country || 'USD');
-    const title = escapeHtml(item.title || '');
-    const forecast = escapeHtml(item.forecast || '-');
-    const previous = escapeHtml(item.previous || '-');
-    const actual = escapeHtml(item.actual || '-');
-
-    el.innerHTML = `
-      <div class="news-item-top">
-        <div class="news-item-main">
-          <div class="news-country-chip">${country}</div>
-          <div class="news-item-title">${title}</div>
-        </div>
-        <span class="news-impact-badge ${impactClass}">${impactLabel}</span>
-      </div>
-      <div class="news-item-meta">
-        <span class="news-meta-date">📅 ${dateStr}</span>
-        <span class="news-meta-time">⏰ <strong>${timeStr} น.</strong></span>
-        <span class="news-countdown" id="news-cd-${index}">⏳ กำลังคำนวณ...</span>
-      </div>
-      <div class="news-item-data">
-        <div class="news-data-cell">
-          <span class="news-data-label">คาดการณ์</span>
-          <span class="news-data-val">${forecast}</span>
-        </div>
-        <div class="news-data-cell">
-          <span class="news-data-label">ครั้งก่อน</span>
-          <span class="news-data-val">${previous}</span>
-        </div>
-        <div class="news-data-cell news-data-actual">
-          <span class="news-data-label">ประกาศ</span>
-          <span class="news-data-val">${actual}</span>
-        </div>
-      </div>
+  let idx = 0;
+  groups.forEach(group => {
+    const dayHeader = document.createElement('div');
+    dayHeader.className = 'news-day-header';
+    const dt = group.key === '__no_date__' ? null : new Date(group.key + 'T00:00:00');
+    const today = new Date();
+    const isToday = group.key === dayKey(today);
+    const isTomorrow = group.key === dayKey(new Date(today.getTime() + 86400000));
+    const isYesterday = group.key === dayKey(new Date(today.getTime() - 86400000));
+    const dayLabel = !dt ? 'ไม่ระบุวันที่'
+      : isToday ? '📅 วันนี้'
+      : isTomorrow ? '📅 พรุ่งนี้'
+      : isYesterday ? '📅 เมื่อวาน'
+      : dt.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+    dayHeader.innerHTML = `
+      <span class="news-day-label">${dayLabel}</span>
+      <span class="news-day-count">${group.items.length} รายการ</span>
     `;
-    container.appendChild(el);
+    container.appendChild(dayHeader);
+
+    group.items.forEach(item => {
+      const el = document.createElement('div');
+      el.className = 'news-item';
+
+      const impactUpper = (item.impact || 'low').toLowerCase();
+      let impactClass = 'impact-low', impactShort = 'LOW', impactLabel = 'ต่ำ';
+      if (impactUpper.includes('high') || impactUpper.includes('red')) {
+        impactClass = 'impact-high'; impactShort = 'HIGH'; impactLabel = 'ข่าวแรง';
+      } else if (impactUpper.includes('med') || impactUpper.includes('orange')) {
+        impactClass = 'impact-med'; impactShort = 'MED'; impactLabel = 'ปานกลาง';
+      }
+      el.classList.add(impactClass);
+
+      const dateObj = item.date ? new Date(item.date) : null;
+      const thOpts = { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' };
+      const timeStr = dateObj ? dateObj.toLocaleTimeString('th-TH', thOpts) : (item.time || '--:--');
+
+      const country = escapeHtml(item.country || '—');
+      const title = escapeHtml(item.title || '');
+      const forecast = escapeHtml(item.forecast || '-');
+      const previous = escapeHtml(item.previous || '-');
+      const actual = escapeHtml(item.actual || '-');
+
+      el.innerHTML = `
+        <div class="news-time-cell">${timeStr}</div>
+        <div class="news-country-chip">${country}</div>
+        <div class="news-item-main">
+          <div class="news-item-title">${title}</div>
+          <div class="news-item-sub">
+            <span class="news-val"><span class="news-val-label">ประกาศ</span><b class="v-actual">${actual}</b></span>
+            <span class="news-val"><span class="news-val-label">คาดการณ์</span><b>${forecast}</b></span>
+            <span class="news-val"><span class="news-val-label">ครั้งก่อน</span><b>${previous}</b></span>
+          </div>
+        </div>
+        <div class="news-impact-badge ${impactClass}" title="${impactLabel}">${impactShort}</div>
+        <div class="news-countdown" id="news-cd-${idx}">⏳</div>
+      `;
+      container.appendChild(el);
+      idx++;
+    });
   });
 
   updateNewsCountdowns();
