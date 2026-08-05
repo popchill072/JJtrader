@@ -538,6 +538,20 @@ html[data-theme="light"] body::before {
   color: var(--accent-red);
 }
 
+.btn-asset.watchlist-reset {
+  min-width: 28px;
+  padding: 2px 8px;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.04);
+  border-color: var(--border-subtle);
+}
+
+.btn-asset.watchlist-reset:hover {
+  color: var(--gold-light);
+  background: rgba(255,215,0,0.12);
+  border-color: var(--border-gold-active);
+}
+
 /* ── V11 BACKTEST MODAL ── */
 .bt-modal-overlay {
   position: fixed;

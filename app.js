@@ -847,6 +847,7 @@ function renderWatchlist() {
   html += `<div class="watchlist-add">
     <button class="btn-asset watchlist-add-btn" onclick="toggleWatchlistAddPanel(event)" title="เพิ่มสินทรัพย์เข้าชุดดูกราฟ">＋ เพิ่มสินทรัพย์</button>
     <button class="btn-asset watchlist-remove" onclick="removeWatchlistSymbol('${activeSymbol}')" title="ลบสินทรัพย์ปัจจุบันออกจากชุดดูกราฟ">✕</button>
+    <button class="btn-asset watchlist-reset" onclick="resetWatchlist()" title="คืนค่า Watchlist กลับเป็นชุดเริ่มต้น (XAU, XAG, DXY, US Oil, BTC)">↩️</button>
     <div class="watchlist-add-panel" id="watchlist-add-panel" style="display:none">
       <div class="wp-title">เลือกสินทรัพย์เพื่อเพิ่มในชุดดูกราฟ</div>
       ${panelItems}
@@ -888,6 +889,15 @@ function removeWatchlistSymbol(id) {
   saveWatchlist();
   showToast(`🗑️ ลบ ${SYMBOL_META[id]?.short || id} ออกจาก Watchlist แล้ว`);
   if (currentSymbol === id) changeSymbol(next, SYMBOL_META[next]?.label || next, null);
+}
+
+function resetWatchlist() {
+  userWatchlist = ALL_SYMBOLS.slice(0, 5).map(s => s.id);
+  if (!userWatchlist.includes(currentSymbol)) {
+    changeSymbol(userWatchlist[0], SYMBOL_META[userWatchlist[0]]?.label || userWatchlist[0], null);
+  }
+  saveWatchlist();
+  showToast('↩️ คืนค่า Watchlist กลับเป็นชุดเริ่มต้นแล้ว (XAU/USD, XAG/USD, DXY, US Oil, BTC)');
 }
 
 // ── V11 CANDLE DATA ────────────────────────────────────
