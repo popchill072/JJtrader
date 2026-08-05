@@ -1,6 +1,6 @@
 // JJ Trader Service Worker - offline support + versioned cache
 const CACHE = 'jj-trader-v1';
-const CORE = ['/', '/index.html', '/manifest.webmanifest', '/styles.css?v=60.0', '/app.js?v=60.0', '/v11engine.js?v=60.0'];
+const CORE = ['/', '/index.html', '/manifest.webmanifest', '/styles.css?v=61.0', '/app.js?v=61.0', '/v11engine.js?v=61.0'];
 
 self.addEventListener('install', e => {
   self.skipWaiting();

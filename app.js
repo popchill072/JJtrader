@@ -833,6 +833,7 @@ function renderWatchlist() {
   const container = document.getElementById('asset-selector');
   if (!container) return;
   const activeSymbol = currentSymbol;
+  const addable = ALL_SYMBOLS.filter(s => !userWatchlist.includes(s.id));
   let html = '';
   userWatchlist.forEach(id => {
     const meta = SYMBOL_META[id] || { short: id, label: id };
@@ -840,15 +841,34 @@ function renderWatchlist() {
     const isActive = id === activeSymbol ? ' active' : '';
     html += `<button class="btn-asset${isActive}" onclick="changeSymbol('${id}', '${title}', this)" title="${title}"><span>${title.split(' ')[0]}</span>${meta.short}</button>`;
   });
+  const panelItems = addable.length
+    ? addable.map(s => `<button onclick="addWatchlistSymbol('${s.id}'); toggleWatchlistAddPanel()" title="${s.label}"><span class="wp-emoji">${s.label.split(' ')[0]}</span>${s.label.split(' ').slice(1).join(' ')}</button>`).join('')
+    : '<div class="wp-empty">✅ ครบทุกสินทรัพย์แล้ว</div>';
   html += `<div class="watchlist-add">
-    <select id="watchlist-add-select" onchange="addWatchlistSymbol(this.value); this.value='';" title="เพิ่มสินทรัพย์เข้าชุดดูกราฟ">
-      <option value="">＋ เพิ่ม...</option>
-      ${ALL_SYMBOLS.filter(s => !userWatchlist.includes(s.id)).map(s => `<option value="${s.id}">${s.label}</option>`).join('')}
-    </select>
+    <button class="btn-asset watchlist-add-btn" onclick="toggleWatchlistAddPanel(event)" title="เพิ่มสินทรัพย์เข้าชุดดูกราฟ">＋ เพิ่มสินทรัพย์</button>
     <button class="btn-asset watchlist-remove" onclick="removeWatchlistSymbol('${activeSymbol}')" title="ลบสินทรัพย์ปัจจุบันออกจากชุดดูกราฟ">✕</button>
+    <div class="watchlist-add-panel" id="watchlist-add-panel" style="display:none">
+      <div class="wp-title">เลือกสินทรัพย์เพื่อเพิ่มในชุดดูกราฟ</div>
+      ${panelItems}
+    </div>
   </div>`;
   container.innerHTML = html;
 }
+
+function toggleWatchlistAddPanel(event) {
+  if (event) event.stopPropagation();
+  const panel = document.getElementById('watchlist-add-panel');
+  if (!panel) return;
+  const showing = panel.style.display !== 'none';
+  document.querySelectorAll('.watchlist-add-panel').forEach(p => p.style.display = 'none');
+  panel.style.display = showing ? 'none' : 'grid';
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.watchlist-add')) {
+    document.querySelectorAll('.watchlist-add-panel').forEach(p => p.style.display = 'none');
+  }
+});
 
 function addWatchlistSymbol(id) {
   if (!id || userWatchlist.includes(id)) return;
@@ -1053,7 +1073,7 @@ function renderV11BacktestResult(res, bars, tfLabel, sym) {
       </div>
       <div class="bt-stats bt-stats-sm">
         <div class="bt-stat"><span>ชนะ ${res.wins} / แพ้ ${res.losses}</span></div>
-        <div class="bt-stat"><span>Max DD ${res.maxDrawdown.toFixed(1)}%</span></div>
+        <div class="bt-stat"><span>Max DD ${res.maxDrawdown.toFixed(1)}R</span></div>
         <div class="bt-stat"><span>Avg R ${res.avgR.toFixed(2)}</span></div>
         <div class="bt-stat"><span>Avg ${res.avgBarsHeld.toFixed(0)} แท่ง/เทรด</span></div>
       </div>

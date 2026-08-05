@@ -440,26 +440,88 @@ html[data-theme="light"] body::before {
 .asset-selector { min-width: 0; }
 
 .watchlist-add {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
-.watchlist-add select {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-primary);
-  border-radius: 6px;
-  font-size: 12px;
-  padding: 5px 6px;
-  cursor: pointer;
-  max-width: 120px;
+.btn-asset.watchlist-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  color: var(--gold-light);
+  background: rgba(255,215,0,0.08);
+  border-color: var(--border-gold-active);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.watchlist-add select option {
+.btn-asset.watchlist-add-btn:hover {
+  background: rgba(255,215,0,0.18);
+  border-color: var(--gold-light);
+}
+
+.watchlist-add-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 2000;
+  min-width: 240px;
+  max-width: 300px;
+  max-height: 320px;
+  overflow-y: auto;
   background: var(--bg-secondary);
+  border: 1px solid var(--border-gold-active);
+  border-radius: 10px;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.5);
+  padding: 8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.watchlist-add-panel .wp-title {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 2px 4px 6px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 4px;
+}
+
+.watchlist-add-panel .wp-empty {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: var(--accent-green);
+  text-align: center;
+  padding: 8px;
+}
+
+.watchlist-add-panel button {
+  text-align: left;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255,255,255,0.04);
   color: var(--text-primary);
+  border-radius: 8px;
+  font-size: 12px;
+  padding: 8px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.watchlist-add-panel button:hover {
+  background: rgba(255,215,0,0.15);
+  border-color: var(--gold-light);
+  color: var(--gold-light);
+}
+
+.watchlist-add-panel button .wp-emoji {
+  margin-right: 5px;
 }
 
 .btn-asset.watchlist-remove {

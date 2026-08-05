@@ -474,7 +474,7 @@ function runV11Backtest(candles, opts) {
   const grossWin = wins.reduce((a, t) => a + t.rMulti, 0);
   const grossLoss = Math.abs(losses.reduce((a, t) => a + t.rMulti, 0));
   const equity = [];
-  let bal = 0;
+  let bal = 1; // start with 1R baseline so drawdown % stays meaningful
   trades.forEach(t => { bal += t.rMulti; equity.push(bal); });
 
   return {
@@ -485,7 +485,7 @@ function runV11Backtest(candles, opts) {
     totalR,
     avgR: trades.length ? totalR / trades.length : 0,
     profitFactor: grossLoss > 0 ? grossWin / grossLoss : (grossWin > 0 ? Infinity : 0),
-    maxDrawdown: maxDrawdownPct(equity),
+    maxDrawdown: maxDrawdownR(equity),
     bestTrade: trades.length ? Math.max(...trades.map(t => t.rMulti)) : 0,
     worstTrade: trades.length ? Math.min(...trades.map(t => t.rMulti)) : 0,
     avgBarsHeld: trades.length ? trades.reduce((a, t) => a + t.barsHeld, 0) / trades.length : 0,
@@ -493,12 +493,14 @@ function runV11Backtest(candles, opts) {
   };
 }
 
-function maxDrawdownPct(equity) {
-  let peak = 0, maxDD = 0;
+function maxDrawdownR(equity) {
+  // Drawdown in R units: distance from the running peak to the deepest trough.
+  if (!equity.length) return 0;
+  let peak = equity[0], maxDD = 0;
   for (const v of equity) {
     if (v > peak) peak = v;
-    const dd = peak > 0 ? (peak - v) / Math.abs(peak) : 0;
+    const dd = peak - v;
     if (dd > maxDD) maxDD = dd;
   }
-  return maxDD * 100;
+  return maxDD;
 }
