@@ -1214,6 +1214,7 @@ select.calc-input {
   border-radius: 8px;
   transition: var(--transition-fast);
   overflow: hidden;
+  min-height: 58px;
 }
 .news-item.impact-high {
   border-left: 3px solid var(--accent-red);
@@ -1233,7 +1234,7 @@ select.calc-input {
 
 .news-time-cell {
   flex-shrink: 0;
-  width: 46px;
+  width: 44px;
   text-align: center;
   font-size: 12px;
   font-weight: 800;
@@ -1246,14 +1247,19 @@ select.calc-input {
 }
 .news-country-chip {
   flex-shrink: 0;
+  width: 42px;
+  text-align: center;
   background: var(--bg-chip-border);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
-  padding: 2px 7px;
+  padding: 2px 4px;
   border-radius: 6px;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.5px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .news-item-main {
   flex: 1;
@@ -1272,28 +1278,34 @@ select.calc-input {
   text-overflow: ellipsis;
 }
 .news-item-sub {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
   font-size: 10px;
   color: var(--text-muted);
 }
 .news-val {
-  display: inline-flex;
-  align-items: center;
+  display: flex;
+  align-items: baseline;
   gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
 }
 .news-val-label {
   color: var(--text-muted);
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+  flex-shrink: 0;
 }
 .news-val b {
   color: var(--text-main);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .news-val .v-actual { color: var(--accent-green); }
 
@@ -1325,7 +1337,7 @@ select.calc-input {
 
 .news-countdown {
   flex-shrink: 0;
-  width: 84px;
+  width: 82px;
   text-align: center;
   font-weight: 800;
   font-size: 10px;
@@ -1335,6 +1347,9 @@ select.calc-input {
   padding: 3px 6px;
   border-radius: 20px;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .news-mock-banner {
@@ -2173,6 +2188,16 @@ select.calc-input {
   .main-layout { padding: 10px 12px; }
   .brand-title { font-size: 16px; }
   .user-badge { padding: 4px 10px; font-size: 11px; }
+
+  /* News: keep rows compact & readable on phones */
+  .news-item { gap: 6px; padding: 8px; min-height: 54px; }
+  .news-time-cell { width: 38px; font-size: 11px; padding: 3px 4px; }
+  .news-country-chip { width: 36px; font-size: 9px; }
+  .news-item-sub { gap: 4px; }
+  .news-val { flex-direction: column; gap: 0; align-items: flex-start; }
+  .news-countdown { width: 70px; font-size: 9px; }
+  .news-impact-badge { width: 36px; font-size: 8px; }
+}
   .toast { right: 12px; left: 12px; text-align: center; }
   .chat-window { right: 12px; left: 12px; width: auto; bottom: 84px; height: calc(100vh - 140px); }
   .chat-fab { right: 16px; bottom: 16px; width: 52px; height: 52px; }
