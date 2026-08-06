@@ -464,64 +464,90 @@ html[data-theme="light"] body::before {
   border-color: var(--gold-light);
 }
 
-.watchlist-add-panel {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 2000;
-  min-width: 240px;
-  max-width: 300px;
-  max-height: 320px;
-  overflow-y: auto;
+/* Full-screen overlay for the add-asset chooser (avoids overflow clipping) */
+.watchlist-add-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(3px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.watchlist-add-modal {
+  width: 100%;
+  max-width: 520px;
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
   background: var(--bg-secondary);
-  border: 1px solid var(--border-gold-active);
-  border-radius: 10px;
-  box-shadow: 0 12px 36px rgba(0,0,0,0.5);
-  padding: 8px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
+  border: 1px solid var(--border-gold);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 18px 50px rgba(0,0,0,0.5);
 }
 
-.watchlist-add-panel .wp-title {
-  grid-column: 1 / -1;
-  font-size: 11px;
-  color: var(--text-muted);
-  padding: 2px 4px 6px;
+.wap-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--gold-light);
   border-bottom: 1px solid var(--border-subtle);
-  margin-bottom: 4px;
 }
 
-.watchlist-add-panel .wp-empty {
-  grid-column: 1 / -1;
-  font-size: 11px;
-  color: var(--accent-green);
-  text-align: center;
-  padding: 8px;
+.wap-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.wap-close:hover { color: var(--accent-red); }
+
+.wap-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 6px;
 }
 
-.watchlist-add-panel button {
+.wap-item {
   text-align: left;
   border: 1px solid var(--border-subtle);
   background: rgba(255,255,255,0.04);
   color: var(--text-primary);
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 12px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.watchlist-add-panel button:hover {
+.wap-item:hover {
   background: rgba(255,215,0,0.15);
   border-color: var(--gold-light);
   color: var(--gold-light);
 }
 
-.watchlist-add-panel button .wp-emoji {
-  margin-right: 5px;
+.wap-item .wp-emoji { margin-right: 6px; }
+
+.wp-empty {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: var(--accent-green);
+  text-align: center;
+  padding: 16px;
 }
 
 .btn-asset.watchlist-remove {

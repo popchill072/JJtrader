@@ -833,7 +833,6 @@ function renderWatchlist() {
   const container = document.getElementById('asset-selector');
   if (!container) return;
   const activeSymbol = currentSymbol;
-  const addable = ALL_SYMBOLS.filter(s => !userWatchlist.includes(s.id));
   let html = '';
   userWatchlist.forEach(id => {
     const meta = SYMBOL_META[id] || { short: id, label: id };
@@ -841,40 +840,46 @@ function renderWatchlist() {
     const isActive = id === activeSymbol ? ' active' : '';
     html += `<button class="btn-asset${isActive}" onclick="changeSymbol('${id}', '${title}', this)" title="${title}"><span>${title.split(' ')[0]}</span>${meta.short}</button>`;
   });
-  const panelItems = addable.length
-    ? addable.map(s => `<button onclick="addWatchlistSymbol('${s.id}'); toggleWatchlistAddPanel()" title="${s.label}"><span class="wp-emoji">${s.label.split(' ')[0]}</span>${s.label.split(' ').slice(1).join(' ')}</button>`).join('')
-    : '<div class="wp-empty">✅ ครบทุกสินทรัพย์แล้ว</div>';
   html += `<div class="watchlist-add">
-    <button class="btn-asset watchlist-add-btn" onclick="toggleWatchlistAddPanel(event)" title="เพิ่มสินทรัพย์เข้าชุดดูกราฟ">＋ เพิ่มสินทรัพย์</button>
+    <button class="btn-asset watchlist-add-btn" onclick="openWatchlistAddPanel()" title="เพิ่มสินทรัพย์เข้าชุดดูกราฟ">＋ เพิ่มสินทรัพย์</button>
     <button class="btn-asset watchlist-remove" onclick="removeWatchlistSymbol('${activeSymbol}')" title="ลบสินทรัพย์ปัจจุบันออกจากชุดดูกราฟ">✕</button>
     <button class="btn-asset watchlist-reset" onclick="resetWatchlist()" title="คืนค่า Watchlist กลับเป็นชุดเริ่มต้น (XAU, XAG, DXY, US Oil, BTC)">↩️</button>
-    <div class="watchlist-add-panel" id="watchlist-add-panel" style="display:none">
-      <div class="wp-title">เลือกสินทรัพย์เพื่อเพิ่มในชุดดูกราฟ</div>
-      ${panelItems}
-    </div>
   </div>`;
   container.innerHTML = html;
 }
 
-function toggleWatchlistAddPanel(event) {
-  if (event) event.stopPropagation();
-  const panel = document.getElementById('watchlist-add-panel');
-  if (!panel) return;
-  const showing = panel.style.display !== 'none';
-  document.querySelectorAll('.watchlist-add-panel').forEach(p => p.style.display = 'none');
-  panel.style.display = showing ? 'none' : 'grid';
+function openWatchlistAddPanel() {
+  const existing = document.getElementById('watchlist-add-overlay');
+  if (existing) existing.remove();
+  const addable = ALL_SYMBOLS.filter(s => !userWatchlist.includes(s.id));
+  const items = addable.length
+    ? addable.map(s => `<button class="wap-item" onclick="addWatchlistSymbol('${s.id}')" title="${s.label}"><span class="wp-emoji">${s.label.split(' ')[0]}</span>${s.label.split(' ').slice(1).join(' ')}</button>`).join('')
+    : '<div class="wp-empty">✅ ครบทุกสินทรัพย์แล้ว</div>';
+  const overlay = document.createElement('div');
+  overlay.id = 'watchlist-add-overlay';
+  overlay.className = 'watchlist-add-overlay';
+  overlay.innerHTML = `
+    <div class="watchlist-add-modal" onclick="event.stopPropagation()">
+      <div class="wap-head">
+        <span>＋ เพิ่มสินทรัพย์ในชุดดูกราฟ</span>
+        <button class="wap-close" onclick="closeWatchlistAddPanel()">✕</button>
+      </div>
+      <div class="wap-grid">${items}</div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', () => closeWatchlistAddPanel());
 }
 
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.watchlist-add')) {
-    document.querySelectorAll('.watchlist-add-panel').forEach(p => p.style.display = 'none');
-  }
-});
+function closeWatchlistAddPanel() {
+  const el = document.getElementById('watchlist-add-overlay');
+  if (el) el.remove();
+}
 
 function addWatchlistSymbol(id) {
   if (!id || userWatchlist.includes(id)) return;
   userWatchlist.push(id);
   saveWatchlist();
+  closeWatchlistAddPanel();
   showToast(`✅ เพิ่ม ${SYMBOL_META[id]?.short || id} เข้า Watchlist แล้ว`);
   changeSymbol(id, SYMBOL_META[id]?.label || id, null);
 }
